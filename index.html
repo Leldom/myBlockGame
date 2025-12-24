@@ -509,50 +509,53 @@
             }
         }
 
-        function checkSpawnRefill() {
-            // 1. Sind alle Steine weg? Dann neue holen.
-            if(spawnEl.children.length === 0 || 
-            Array.from(spawnEl.children).every(c => c.innerHTML === '')) {
+ function checkSpawnRefill() {
+            // 1. Sind alle Steine weg?
+            const shapes = Array.from(spawnEl.querySelectorAll('.shape'));
+            
+            // Wichtig: Wir prüfen, ob die Container leer sind ODER ob gar keine Shapes mehr da sind
+            // (Manchmal bleibt ein leerer Container stehen)
+            if(shapes.length === 0) {
                 spawnShapes();
             }
             
-            // 2. JETZT prüfen, ob man mit den (neuen oder alten) Steinen noch was machen kann
-            // Kleines Timeout, damit der DOM erst updaten kann
+            // 2. Game Over prüfen - mit etwas mehr Verzögerung für Sicherheit
             setTimeout(() => {
                 checkGameOver();
-            }, 100);
+            }, 250); // Erhöht auf 250ms, damit der Browser Zeit zum Rendern hat
         }
+
         function checkGameOver() {
+            // Hol alle Steine, die JETZT gerade verfügbar sind
             const shapes = Array.from(spawnEl.querySelectorAll('.shape'));
             
-            // Wenn gar keine Steine da sind, kann es kein Game Over sein (sie werden ja gleich gespawnt)
-            if (shapes.length === 0) return;
+            if (shapes.length === 0) return; // Keine Steine da? Dann kein Game Over möglich.
 
-            let possibleMoveFound = false;
+            let movePossible = false;
 
-            // 1. Durch alle verbleibenden Steine loopen
+            // Prüfe jeden verfügbaren Stein
             for (let s = 0; s < shapes.length; s++) {
                 const shapeEl = shapes[s];
-                // Wir müssen prüfen, ob der Stein sichtbar ist (falls wir ihn gerade draggen, zählt er nicht)
-                if (shapeEl.style.opacity === '0') continue;
-
                 const matrix = JSON.parse(shapeEl.dataset.matrix);
 
-                // 2. Durch das ganze Grid loopen
+                // Prüfe für diesen Stein JEDE mögliche Position auf dem Brett
                 for (let r = 0; r < BOARD_SIZE; r++) {
                     for (let c = 0; c < BOARD_SIZE; c++) {
-                        // 3. Wenn EIN Stein IRGENDWO passt -> Spiel geht weiter
                         if (canPlace(matrix, r, c)) {
-                            return; // Alles gut, brich die Prüfung ab
+                            movePossible = true;
+                            break; // Dieser Stein passt irgendwo! Spiel geht weiter.
                         }
                     }
+                    if (movePossible) break;
                 }
+                if (movePossible) break;
             }
 
-            // Wenn wir hier ankommen, wurde kein gültiger Zug gefunden
-            showGameOver();
+            // Wenn nach Prüfung ALLER Steine kein Move möglich war -> Game Over
+            if (!movePossible) {
+                showGameOver();
+            }
         }
-
         function showGameOver() {
             document.getElementById('final-score').innerText = 'Score: ' + score;
             document.getElementById('game-over-overlay').classList.remove('hidden');
