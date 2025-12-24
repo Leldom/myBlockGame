@@ -143,6 +143,48 @@
             /* Wir steuern Transform jetzt per JS für die perfekte Größe */
             transform-origin: center center; 
         }
+        .hidden {
+            display: none !important;
+        }
+
+        #game-over-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            backdrop-filter: blur(5px);
+        }
+
+        .game-over-box {
+            background: var(--bg-color);
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            border: 2px solid var(--cell-filled);
+            box-shadow: 0 0 20px rgba(233, 69, 96, 0.5);
+        }
+
+        .game-over-box h2 {
+            font-size: 2.5rem;
+            margin: 0 0 10px 0;
+            color: var(--cell-filled);
+        }
+
+        .game-over-box button {
+            background: var(--cell-filled);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 20px;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -154,6 +196,13 @@
     
     <div id="game-board"></div>
     <div id="spawn-area"></div>
+    <div id="game-over-overlay" class="hidden">
+    <div class="game-over-box">
+        <h2>Game Over!</h2>
+        <p id="final-score">Score: 0</p>
+        <button onclick="resetGame()">Neustart</button>
+    </div>
+</div>
 
     <script>
         const BOARD_SIZE = 8;
@@ -461,11 +510,68 @@
         }
 
         function checkSpawnRefill() {
+            // 1. Sind alle Steine weg? Dann neue holen.
             if(spawnEl.children.length === 0 || 
-               Array.from(spawnEl.children).every(c => c.innerHTML === '')) {
+            Array.from(spawnEl.children).every(c => c.innerHTML === '')) {
                 spawnShapes();
             }
-            // Optional: Game Over Check hier einfügen
+            
+            // 2. JETZT prüfen, ob man mit den (neuen oder alten) Steinen noch was machen kann
+            // Kleines Timeout, damit der DOM erst updaten kann
+            setTimeout(() => {
+                checkGameOver();
+            }, 100);
+        }
+        function checkGameOver() {
+            const shapes = Array.from(spawnEl.querySelectorAll('.shape'));
+            
+            // Wenn gar keine Steine da sind, kann es kein Game Over sein (sie werden ja gleich gespawnt)
+            if (shapes.length === 0) return;
+
+            let possibleMoveFound = false;
+
+            // 1. Durch alle verbleibenden Steine loopen
+            for (let s = 0; s < shapes.length; s++) {
+                const shapeEl = shapes[s];
+                // Wir müssen prüfen, ob der Stein sichtbar ist (falls wir ihn gerade draggen, zählt er nicht)
+                if (shapeEl.style.opacity === '0') continue;
+
+                const matrix = JSON.parse(shapeEl.dataset.matrix);
+
+                // 2. Durch das ganze Grid loopen
+                for (let r = 0; r < BOARD_SIZE; r++) {
+                    for (let c = 0; c < BOARD_SIZE; c++) {
+                        // 3. Wenn EIN Stein IRGENDWO passt -> Spiel geht weiter
+                        if (canPlace(matrix, r, c)) {
+                            return; // Alles gut, brich die Prüfung ab
+                        }
+                    }
+                }
+            }
+
+            // Wenn wir hier ankommen, wurde kein gültiger Zug gefunden
+            showGameOver();
+        }
+
+        function showGameOver() {
+            document.getElementById('final-score').innerText = 'Score: ' + score;
+            document.getElementById('game-over-overlay').classList.remove('hidden');
+        }
+
+        function resetGame() {
+            score = 0;
+            comboMultiplier = 0;
+            movesWithoutClear = 0;
+            grid = Array(BOARD_SIZE).fill().map(() => Array(BOARD_SIZE).fill(0));
+            
+            // UI Reset
+            updateBoardVisuals();
+            document.getElementById('game-over-overlay').classList.add('hidden');
+            document.body.classList.remove('combo-mode');
+            comboEl.style.opacity = '0';
+            
+            // Neue Steine
+            spawnShapes();
         }
 
         // Start
