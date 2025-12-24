@@ -134,12 +134,14 @@
             border-radius: 2px;
         }
 
+        /* Update im Style-Bereich */
         .dragging {
             position: fixed;
             z-index: 1000;
             pointer-events: none;
             opacity: 0.9;
-            transform: scale(1.2) translate(-50%, -150%);
+            /* Wir steuern Transform jetzt per JS für die perfekte Größe */
+            transform-origin: center center; 
         }
     </style>
 </head>
@@ -223,22 +225,7 @@
 
         // --- 2. LOGIK & GHOST EFFEKT ---
 
-        // Helper: Grid-Koordinaten aus Bildschirmposition berechnen
-        function getGridCoords(x, y, shapeEl) {
-            const boardRect = boardEl.getBoundingClientRect();
-            // Finger Offset Korrektur (-150% Height, siehe CSS)
-            const fingerY_Correction = y - (shapeEl.offsetHeight * 1.5); 
-
-            if (x > boardRect.left && x < boardRect.right && 
-                fingerY_Correction > boardRect.top && fingerY_Correction < boardRect.bottom) {
-                
-                const cellSize = boardRect.width / BOARD_SIZE;
-                const col = Math.floor((x - boardRect.left - (shapeEl.offsetWidth/2)) / cellSize); 
-                const row = Math.floor((fingerY_Correction - boardRect.top) / cellSize);
-                return { r: row, c: col, valid: true };
-            }
-            return { r: 0, c: 0, valid: false };
-        }
+       
 
         function clearPreview() {
             document.querySelectorAll('.cell.preview').forEach(el => el.classList.remove('preview'));
@@ -258,18 +245,70 @@
             }
         }
 
+        // Konstante für den Abstand über dem Finger (in Pixeln)
+        const DRAG_OFFSET_Y = 100; 
+
+        function getGridCoords(x, y, shapeEl) {
+            const boardRect = boardEl.getBoundingClientRect();
+            
+            // Wir nehmen exakt den Punkt über dem Finger (minus Offset)
+            const targetX = x;
+            const targetY = y - DRAG_OFFSET_Y;
+
+            // Ist dieser Punkt innerhalb des Boards?
+            if (targetX > boardRect.left && targetX < boardRect.right && 
+                targetY > boardRect.top && targetY < boardRect.bottom) {
+                
+                const cellSize = boardRect.width / BOARD_SIZE;
+                
+                // Umrechnung in Spalte/Zeile
+                // Wir zentrieren den Block logisch auf dem Finger
+                // shapeEl.dataset.cols speichert, wie breit der Block in Zellen ist
+                const cols = parseInt(shapeEl.dataset.cols || 1);
+                const rows = parseInt(shapeEl.dataset.rows || 1);
+
+                // Wir berechnen die linke obere Ecke des Blocks basierend auf der Mitte
+                const col = Math.floor((targetX - boardRect.left) / cellSize - (cols - 1) / 2); 
+                const row = Math.floor((targetY - boardRect.top) / cellSize - (rows - 1) / 2);
+                
+                return { r: row, c: col, valid: true };
+            }
+            return { r: 0, c: 0, valid: false };
+        }
+
         function addDragLogic(el) {
             let clone;
             const matrix = JSON.parse(el.dataset.matrix);
+            
+            // Speichere Dimensionen für Zentrierung
+            el.dataset.rows = matrix.length;
+            el.dataset.cols = matrix[0].length;
 
             const touchStart = (e) => {
                 e.preventDefault();
                 const touch = e.touches[0];
                 
+                // 1. Gitter-Größe berechnen
+                const boardRect = boardEl.getBoundingClientRect();
+                const gridCellSize = boardRect.width / BOARD_SIZE;
+                const currentBlockSize = 20; // Unsere CSS Größe der kleinen Blöcke (20px)
+                
+                // Skalierungsfaktor berechnen (Damit der Block exakt ins Gitter passt)
+                const scaleFactor = gridCellSize / currentBlockSize;
+
                 clone = el.cloneNode(true);
                 clone.classList.add('dragging');
-                clone.style.width = el.offsetWidth + 'px';
+                // Breite fixieren, damit Layout beim Draggen nicht bricht
+                clone.style.width = el.offsetWidth + 'px'; 
+                
                 document.body.appendChild(clone);
+                
+                // Positionierung & Skalierung
+                const moveAt = (pageX, pageY) => {
+                    clone.style.left = (pageX - el.offsetWidth / 2) + 'px';
+                    clone.style.top = (pageY - el.offsetHeight / 2 - DRAG_OFFSET_Y) + 'px';
+                    clone.style.transform = `scale(${scaleFactor})`;
+                };
                 
                 moveAt(touch.pageX, touch.pageY);
                 el.style.opacity = '0';
@@ -278,7 +317,6 @@
                     const t = e.touches[0];
                     moveAt(t.pageX, t.pageY);
                     
-                    // --- NEU: VORSCHAU ---
                     const coords = getGridCoords(t.clientX, t.clientY, clone);
                     if (coords.valid) {
                         showPreview(matrix, coords.r, coords.c);
@@ -290,7 +328,7 @@
                 const touchEnd = (e) => {
                     document.removeEventListener('touchmove', touchMove);
                     document.removeEventListener('touchend', touchEnd);
-                    clearPreview(); // Vorschau entfernen
+                    clearPreview();
                     
                     const t = e.changedTouches[0];
                     const coords = getGridCoords(t.clientX, t.clientY, clone);
@@ -299,17 +337,10 @@
                         placeShape(matrix, coords.r, coords.c);
                         clone.remove();
                         el.parentNode.innerHTML = ''; 
-                        
-                        // Zuerst visuell updaten, dann Logik prüfen
                         updateBoardVisuals(); 
-                        
-                        // Async check für Animationen
-                        setTimeout(() => {
-                            checkLinesAndSpawn();
-                        }, 50);
-
+                        setTimeout(() => checkLinesAndSpawn(), 50);
                     } else {
-                        // Reset
+                        // Zurück fliegen lassen (optional, hier einfach entfernen)
                         clone.remove();
                         el.style.opacity = '1';
                     }
@@ -317,11 +348,6 @@
 
                 document.addEventListener('touchmove', touchMove, {passive: false});
                 document.addEventListener('touchend', touchEnd);
-            };
-
-            const moveAt = (pageX, pageY) => {
-                clone.style.left = pageX + 'px';
-                clone.style.top = pageY + 'px';
             };
 
             el.addEventListener('touchstart', touchStart, {passive: false});
