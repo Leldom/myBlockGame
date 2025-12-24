@@ -6,28 +6,38 @@
     
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="myBlockGame">
-    
-    <title>myBlockGame</title>
+    <title>MyBlockGame - Color Edition</title>
     <style>
         :root {
-            /* Standard Theme (Deep Blue) */
             --bg-color: #1a1a2e;
             --grid-bg: #16213e;
             --cell-empty: #0f3460;
-            --cell-filled: #e94560;
-            --cell-preview: rgba(233, 69, 96, 0.4);
             --text-color: #fff;
             --gap: 4px;
         }
 
-        /* Combo Theme (Fire / Gold) - Wird per JS aktiviert */
+        /* --- FARBPALETTE (Tetris Style) --- */
+        .c-1 { background-color: #00f0f0; box-shadow: inset 0 0 4px rgba(0,0,0,0.25); } /* Cyan */
+        .c-2 { background-color: #0000f0; box-shadow: inset 0 0 4px rgba(0,0,0,0.25); } /* Blau */
+        .c-3 { background-color: #f0a000; box-shadow: inset 0 0 4px rgba(0,0,0,0.25); } /* Orange */
+        .c-4 { background-color: #f0f000; box-shadow: inset 0 0 4px rgba(0,0,0,0.25); } /* Gelb */
+        .c-5 { background-color: #00f000; box-shadow: inset 0 0 4px rgba(0,0,0,0.25); } /* Grün */
+        .c-6 { background-color: #a000f0; box-shadow: inset 0 0 4px rgba(0,0,0,0.25); } /* Lila */
+        .c-7 { background-color: #f00000; box-shadow: inset 0 0 4px rgba(0,0,0,0.25); } /* Rot */
+
+        /* Geister-Steine (Vorschau) - Halbtransparent */
+        .preview.c-1 { background-color: rgba(0, 240, 240, 0.4); box-shadow: 0 0 5px #00f0f0; }
+        .preview.c-2 { background-color: rgba(0, 0, 240, 0.4); box-shadow: 0 0 5px #0000f0; }
+        .preview.c-3 { background-color: rgba(240, 160, 0, 0.4); box-shadow: 0 0 5px #f0a000; }
+        .preview.c-4 { background-color: rgba(240, 240, 0, 0.4); box-shadow: 0 0 5px #f0f000; }
+        .preview.c-5 { background-color: rgba(0, 240, 0, 0.4); box-shadow: 0 0 5px #00f000; }
+        .preview.c-6 { background-color: rgba(160, 0, 240, 0.4); box-shadow: 0 0 5px #a000f0; }
+        .preview.c-7 { background-color: rgba(240, 0, 0, 0.4); box-shadow: 0 0 5px #f00000; }
+
         body.combo-mode {
-            --bg-color: #2e1a1a;
-            --grid-bg: #3e1616;
-            --cell-empty: #600f0f;
-            --cell-filled: #ffcc00; /* Gold */
-            --cell-preview: rgba(255, 204, 0, 0.4);
+            /* Hintergrund wird rötlicher bei Combo */
+            background-color: #2e1a1a;
+            transition: background-color 0.5s;
         }
 
        body {
@@ -41,14 +51,11 @@
             align-items: center;
             justify-content: center;
             overflow: hidden;
-            
-            /* --- NEU: Verhindert Markieren & Kontextmenüs --- */
-            touch-action: none;           /* Hattest du schon: Verhindert Scrollen */
-            -webkit-user-select: none;    /* WICHTIG für Safari: Kein Text markieren */
-            user-select: none;            /* Standard: Kein Text markieren */
-            -webkit-touch-callout: none;  /* WICHTIG: Kein Lupe/Menü beim Gedrückthalten */
-            -webkit-tap-highlight-color: transparent; /* Kein grauer Kasten beim Tippen */
-            
+            touch-action: none;
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
+            -webkit-tap-highlight-color: transparent;
             transition: background-color 0.5s ease;
         }
 
@@ -65,7 +72,8 @@
         #combo-display {
             opacity: 0;
             color: #ffcc00;
-            transition: opacity 0.3s;
+            transition: opacity 0.3s, transform 0.2s;
+            text-shadow: 0 0 10px red;
         }
 
         #game-board {
@@ -81,35 +89,22 @@
             max-width: 400px;
             max-height: 400px;
             transition: background-color 0.5s ease;
-            position: relative; /* Für Effekte */
         }
 
         .cell {
             background-color: var(--cell-empty);
             border-radius: 4px;
-            transition: background-color 0.2s, transform 0.2s;
-        }
-        
-        .cell.filled {
-            background-color: var(--cell-filled);
-            box-shadow: inset 0 0 5px rgba(0,0,0,0.2);
+            transition: transform 0.2s;
         }
 
-        /* Vorschau (Ghost) */
-        .cell.preview {
-            background-color: var(--cell-preview);
-            box-shadow: 0 0 5px var(--cell-filled);
-        }
-
-        /* Animation beim Löschen */
         .cell.clearing {
-            animation: flashAndShrink 0.4s forwards;
+            animation: flashAndShrink 0.5s forwards;
         }
 
         @keyframes flashAndShrink {
-            0% { background-color: #fff; transform: scale(1); }
-            50% { background-color: #fff; transform: scale(1.1); }
-            100% { background-color: var(--cell-empty); transform: scale(0); }
+            0% { filter: brightness(2); transform: scale(1); }
+            50% { filter: brightness(2); transform: scale(1.1); }
+            100% { background-color: var(--cell-empty); transform: scale(0); opacity: 0;}
         }
 
         #spawn-area {
@@ -137,22 +132,18 @@
         .shape-block {
             width: 20px;
             height: 20px;
-            background-color: var(--cell-filled);
             border-radius: 2px;
+            /* Farbe wird per Klasse gesetzt */
         }
 
-        /* Update im Style-Bereich */
         .dragging {
             position: fixed;
             z-index: 1000;
             pointer-events: none;
             opacity: 0.9;
-            /* Wir steuern Transform jetzt per JS für die perfekte Größe */
             transform-origin: center center; 
         }
-        .hidden {
-            display: none !important;
-        }
+        .hidden { display: none !important; }
 
         #game-over-overlay {
             position: fixed;
@@ -171,18 +162,18 @@
             padding: 30px;
             border-radius: 15px;
             text-align: center;
-            border: 2px solid var(--cell-filled);
-            box-shadow: 0 0 20px rgba(233, 69, 96, 0.5);
+            border: 2px solid #fff;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
         }
 
         .game-over-box h2 {
             font-size: 2.5rem;
             margin: 0 0 10px 0;
-            color: var(--cell-filled);
+            color: #e94560;
         }
 
         .game-over-box button {
-            background: var(--cell-filled);
+            background: #e94560;
             color: white;
             border: none;
             padding: 15px 30px;
@@ -198,18 +189,19 @@
 
     <div id="ui-top">
         <div id="score-board">Score: 0</div>
-        <div id="combo-display">COMBO!</div>
+        <div id="combo-display"></div>
     </div>
     
     <div id="game-board"></div>
     <div id="spawn-area"></div>
+    
     <div id="game-over-overlay" class="hidden">
-    <div class="game-over-box">
-        <h2>Game Over!</h2>
-        <p id="final-score">Score: 0</p>
-        <button onclick="resetGame()">Neustart</button>
+        <div class="game-over-box">
+            <h2>Game Over!</h2>
+            <p id="final-score">Score: 0</p>
+            <button onclick="resetGame()">Neustart</button>
+        </div>
     </div>
-</div>
 
     <script>
         const BOARD_SIZE = 8;
@@ -218,12 +210,9 @@
         const scoreEl = document.getElementById('score-board');
         const comboEl = document.getElementById('combo-display');
         
+        // Grid speichert jetzt IDs: 0 = leer, 1-7 = Farbe
         let grid = Array(BOARD_SIZE).fill().map(() => Array(BOARD_SIZE).fill(0));
         let score = 0;
-        let comboMultiplier = 0;
-        let movesWithoutClear = 0;
-
-        // --- 1. SETUP ---
 
         function initBoard() {
             boardEl.innerHTML = '';
@@ -231,55 +220,48 @@
                 for (let c = 0; c < BOARD_SIZE; c++) {
                     let cell = document.createElement('div');
                     cell.classList.add('cell');
-                    // IDs für schnelleren Zugriff
                     cell.id = `cell-${r}-${c}`;
                     boardEl.appendChild(cell);
                 }
             }
         }
 
-        // Formen
         const SHAPES = [
-            [[1]], //1 Block
-            [[1,1]], // 2 Line
-            [[1],[1]], // 2 Stack
-            [[1,1,1]], // 3 Line
-            [[1],[1],[1]], // 3 Stack
-            [[1,1,1,1]], // 4 Line
-            [[1],[1],[1],[1]], // 4 Stack
-            [[1,1,1,1,1]], // 5 Line
-            [[1],[1],[1],[1],[1]], // 5 Stack
-            [[1,1],[1,1]], // 2x2 Cube
-            [[1,1,1],[1,1,1],[1,1,1]], // 3x3
-            [[1,0],[1,0],[1,1]], // L
-            [[0,1],[0,1],[1,1]], // Reverse L
-            [[1,1],[1,0],[1,0]], // L 180
-            [[1,1],[0,1],[0,1]], // Reverse L 180
-            [[1,0,0],[1,1,1]], // Long L
-            [[0,0,1],[1,1,1]], // Reverse Long L
-            [[1,1,1],[0,1,0]], // T
-            [[0,1,0],[1,1,1]], // Reverse T
-            [[0,1],[1,1],[0,1]], // Long T
-            [[1,0],[1,1],[1,0]], // Reverse Long T
-            [[1,1,0],[0,1,1]],  // Z
-            [[0,1,1],[1,1,0]], // Reverse Z
-            [[0,1],[1,1],[1,0]], // Z vertical
-            [[1,0],[1,1],[0,1]], // Reverse Z vertical
+            [[1]], 
+            [[1,1]], [[1],[1]], 
+            [[1,1,1]], [[1],[1],[1]], 
+            [[1,1,1,1]], [[1],[1],[1],[1]], 
+            [[1,1,1,1,1]], [[1],[1],[1],[1],[1]], 
+            [[1,1],[1,1]], 
+            [[1,1,1],[1,1,1],[1,1,1]], 
+            [[1,0],[1,0],[1,1]], [[0,1],[0,1],[1,1]], 
+            [[1,1],[1,0],[1,0]], [[1,1],[0,1],[0,1]], 
+            [[1,0,0],[1,1,1]], [[0,0,1],[1,1,1]], 
+            [[1,1,1],[0,1,0]], [[0,1,0],[1,1,1]], 
+            [[0,1],[1,1],[0,1]], [[1,0],[1,1],[1,0]], 
+            [[1,1,0],[0,1,1]], [[0,1,1],[1,1,0]], 
+            [[0,1],[1,1],[1,0]], [[1,0],[1,1],[0,1]], 
         ];
 
-        function createShapeElement(matrix) {
+        function createShapeElement(matrix, colorId) {
             const shapeDiv = document.createElement('div');
             shapeDiv.classList.add('shape');
             shapeDiv.style.gridTemplateColumns = `repeat(${matrix[0].length}, 20px)`;
             
+            // Speichere die Farb-ID im Dataset für später
+            shapeDiv.dataset.colorId = colorId;
+            shapeDiv.dataset.matrix = JSON.stringify(matrix);
+
             matrix.forEach((row) => {
                 row.forEach((val) => {
                     const block = document.createElement('div');
-                    if (val === 1) block.classList.add('shape-block');
+                    if (val === 1) {
+                        block.classList.add('shape-block');
+                        block.classList.add(`c-${colorId}`); // Farbe zuweisen
+                    }
                     shapeDiv.appendChild(block);
                 });
             });
-            shapeDiv.dataset.matrix = JSON.stringify(matrix);
             return shapeDiv;
         }
 
@@ -288,23 +270,33 @@
             for(let i=0; i<3; i++) {
                 const container = document.createElement('div');
                 container.classList.add('shape-container');
+                
                 const randomShape = SHAPES[Math.floor(Math.random() * SHAPES.length)];
-                const shapeEl = createShapeElement(randomShape);
+                // Zufällige Farbe 1 bis 7
+                const randomColor = Math.floor(Math.random() * 7) + 1;
+                
+                const shapeEl = createShapeElement(randomShape, randomColor);
                 addDragLogic(shapeEl);
                 container.appendChild(shapeEl);
                 spawnEl.appendChild(container);
             }
         }
 
-        // --- 2. LOGIK & GHOST EFFEKT ---
-
-       
-
         function clearPreview() {
-            document.querySelectorAll('.cell.preview').forEach(el => el.classList.remove('preview'));
+            // Entfernt alle Preview-Klassen (auch die Farbspezifischen)
+            document.querySelectorAll('.cell.preview').forEach(el => {
+                el.className = 'cell'; // Reset auf Basis-Klasse
+                // Falls die Zelle eigentlich gefüllt ist, müssen wir das visualisieren
+                // Das macht updateBoardVisuals normalerweise, aber hier reicht simpler Reset,
+                // da wir beim Draggen dauernd updaten.
+                // Besser:
+                const [_, r, c] = el.id.split('-');
+                const val = grid[r][c];
+                if(val > 0) el.classList.add(`c-${val}`);
+            });
         }
 
-        function showPreview(matrix, r, c) {
+        function showPreview(matrix, r, c, colorId) {
             clearPreview();
             if (!canPlace(matrix, r, c)) return;
 
@@ -312,35 +304,29 @@
                 for (let j = 0; j < matrix[i].length; j++) {
                     if (matrix[i][j] === 1) {
                         const cell = document.getElementById(`cell-${r+i}-${c+j}`);
-                        if (cell) cell.classList.add('preview');
+                        if (cell) {
+                            cell.classList.add('preview');
+                            cell.classList.add(`c-${colorId}`);
+                        }
                     }
                 }
             }
         }
 
-        // Konstante für den Abstand über dem Finger (in Pixeln)
         const DRAG_OFFSET_Y = 100; 
 
         function getGridCoords(x, y, shapeEl) {
             const boardRect = boardEl.getBoundingClientRect();
-            
-            // Wir nehmen exakt den Punkt über dem Finger (minus Offset)
             const targetX = x;
             const targetY = y - DRAG_OFFSET_Y;
 
-            // Ist dieser Punkt innerhalb des Boards?
             if (targetX > boardRect.left && targetX < boardRect.right && 
                 targetY > boardRect.top && targetY < boardRect.bottom) {
                 
                 const cellSize = boardRect.width / BOARD_SIZE;
-                
-                // Umrechnung in Spalte/Zeile
-                // Wir zentrieren den Block logisch auf dem Finger
-                // shapeEl.dataset.cols speichert, wie breit der Block in Zellen ist
                 const cols = parseInt(shapeEl.dataset.cols || 1);
                 const rows = parseInt(shapeEl.dataset.rows || 1);
 
-                // Wir berechnen die linke obere Ecke des Blocks basierend auf der Mitte
                 const col = Math.floor((targetX - boardRect.left) / cellSize - (cols - 1) / 2); 
                 const row = Math.floor((targetY - boardRect.top) / cellSize - (rows - 1) / 2);
                 
@@ -352,31 +338,23 @@
         function addDragLogic(el) {
             let clone;
             const matrix = JSON.parse(el.dataset.matrix);
+            const colorId = el.dataset.colorId;
             
-            // Speichere Dimensionen für Zentrierung
             el.dataset.rows = matrix.length;
             el.dataset.cols = matrix[0].length;
 
             const touchStart = (e) => {
                 e.preventDefault();
                 const touch = e.touches[0];
-                
-                // 1. Gitter-Größe berechnen
                 const boardRect = boardEl.getBoundingClientRect();
                 const gridCellSize = boardRect.width / BOARD_SIZE;
-                const currentBlockSize = 20; // Unsere CSS Größe der kleinen Blöcke (20px)
-                
-                // Skalierungsfaktor berechnen (Damit der Block exakt ins Gitter passt)
-                const scaleFactor = gridCellSize / currentBlockSize;
+                const scaleFactor = gridCellSize / 20;
 
                 clone = el.cloneNode(true);
                 clone.classList.add('dragging');
-                // Breite fixieren, damit Layout beim Draggen nicht bricht
                 clone.style.width = el.offsetWidth + 'px'; 
-                
                 document.body.appendChild(clone);
                 
-                // Positionierung & Skalierung
                 const moveAt = (pageX, pageY) => {
                     clone.style.left = (pageX - el.offsetWidth / 2) + 'px';
                     clone.style.top = (pageY - el.offsetHeight / 2 - DRAG_OFFSET_Y) + 'px';
@@ -389,10 +367,9 @@
                 const touchMove = (e) => {
                     const t = e.touches[0];
                     moveAt(t.pageX, t.pageY);
-                    
                     const coords = getGridCoords(t.clientX, t.clientY, clone);
                     if (coords.valid) {
-                        showPreview(matrix, coords.r, coords.c);
+                        showPreview(matrix, coords.r, coords.c, colorId);
                     } else {
                         clearPreview();
                     }
@@ -407,22 +384,19 @@
                     const coords = getGridCoords(t.clientX, t.clientY, clone);
 
                     if (coords.valid && canPlace(matrix, coords.r, coords.c)) {
-                        placeShape(matrix, coords.r, coords.c);
+                        placeShape(matrix, coords.r, coords.c, colorId);
                         clone.remove();
                         el.parentNode.innerHTML = ''; 
                         updateBoardVisuals(); 
                         setTimeout(() => checkLinesAndSpawn(), 50);
                     } else {
-                        // Zurück fliegen lassen (optional, hier einfach entfernen)
                         clone.remove();
                         el.style.opacity = '1';
                     }
                 };
-
                 document.addEventListener('touchmove', touchMove, {passive: false});
                 document.addEventListener('touchend', touchEnd);
             };
-
             el.addEventListener('touchstart', touchStart, {passive: false});
         }
 
@@ -432,19 +406,23 @@
                     if (matrix[i][j] === 1) {
                         let targetR = r + i;
                         let targetC = c + j;
+                        // Out of bounds oder Feld nicht 0 (belegt)
                         if (targetR < 0 || targetR >= BOARD_SIZE || targetC < 0 || targetC >= BOARD_SIZE) return false;
-                        if (grid[targetR][targetC] === 1) return false;
+                        if (grid[targetR][targetC] !== 0) return false;
                     }
                 }
             }
             return true;
         }
 
-        function placeShape(matrix, r, c) {
+        function placeShape(matrix, r, c, colorId) {
+            // +10 Punkte für das bloße Platzieren
+            score += 10;
             for (let i = 0; i < matrix.length; i++) {
                 for (let j = 0; j < matrix[i].length; j++) {
                     if (matrix[i][j] === 1) {
-                        grid[r + i][c + j] = 1;
+                        // Speichere die Farb-ID im Grid (String zu Int konvertieren zur Sicherheit)
+                        grid[r + i][c + j] = parseInt(colorId);
                     }
                 }
             }
@@ -454,25 +432,27 @@
             for (let r = 0; r < BOARD_SIZE; r++) {
                 for (let c = 0; c < BOARD_SIZE; c++) {
                     const cell = document.getElementById(`cell-${r}-${c}`);
-                    // Reset classes carefully (don't remove animation classes yet)
-                    if (grid[r][c] === 1) cell.classList.add('filled');
-                    else if (!cell.classList.contains('clearing')) { 
-                        cell.classList.remove('filled');
+                    const val = grid[r][c];
+                    
+                    // Zuerst alle Farbklassen entfernen
+                    cell.className = 'cell'; 
+                    if(cell.classList.contains('clearing')) cell.classList.add('clearing'); // Animation erhalten
+
+                    if (val > 0) {
+                        cell.classList.add(`c-${val}`);
                     }
                 }
             }
             scoreEl.innerText = `Score: ${score}`;
         }
 
-        // --- 3. CLEAR LOGIK & ANIMATIONEN ---
-
         function checkLinesAndSpawn() {
-            let cellsToClear = []; // Speichert {r, c} Objekte
+            let cellsToClear = []; 
             let linesCleared = 0;
 
-            // Zeilen prüfen
+            // Zeilen prüfen (alle != 0)
             for(let r=0; r<BOARD_SIZE; r++) {
-                if(grid[r].every(val => val === 1)) {
+                if(grid[r].every(val => val !== 0)) {
                     linesCleared++;
                     for(let c=0; c<BOARD_SIZE; c++) cellsToClear.push({r, c});
                 }
@@ -488,86 +468,99 @@
             }
 
             if (cellsToClear.length > 0) {
-                // COMBO LOGIK
-                comboMultiplier++;
-                movesWithoutClear = 0;
-                updateComboVisuals(linesCleared);
+                // Duplikate entfernen (Kreuzungspunkte)
+                const uniqueCells = [];
+                const map = new Map();
+                for (const item of cellsToClear) {
+                    const key = `${item.r}-${item.c}`;
+                    if(!map.has(key)){
+                        map.set(key, true);
+                        uniqueCells.push(item);
+                    }
+                }
 
-                // 1. Animation starten
-                cellsToClear.forEach(obj => {
+                // --- SCORING & COMBO LOGIK ---
+                // Nur bei 3 oder mehr Linien gleichzeitig gibt es den "COMBO" Status
+                let points = 0;
+                let isCombo = false;
+
+                if (linesCleared === 1) points = 100;
+                else if (linesCleared === 2) points = 300;
+                else if (linesCleared === 3) { points = 600; isCombo = true; } // Combo Start
+                else if (linesCleared === 4) { points = 1000; isCombo = true; }
+                else if (linesCleared >= 5)  { points = 2000; isCombo = true; }
+
+                if (isCombo) {
+                    // Multiplikator logik: Je mehr Linien, desto heftiger
+                    const multiplier = linesCleared; 
+                    points = points * multiplier;
+                    
+                    document.body.classList.add('combo-mode');
+                    comboEl.innerText = `${linesCleared}x COMBO!`;
+                    comboEl.style.opacity = '1';
+                    comboEl.style.transform = 'scale(1.5)';
+                } else {
+                    document.body.classList.remove('combo-mode');
+                    comboEl.style.opacity = '0';
+                    comboEl.style.transform = 'scale(1)';
+                }
+
+                score += points;
+
+                // Animation starten
+                uniqueCells.forEach(obj => {
                     const cell = document.getElementById(`cell-${obj.r}-${obj.c}`);
                     cell.classList.add('clearing');
                 });
 
-                // 2. Warten, dann logisch löschen
                 setTimeout(() => {
-                    cellsToClear.forEach(obj => {
+                    uniqueCells.forEach(obj => {
                         grid[obj.r][obj.c] = 0;
                         const cell = document.getElementById(`cell-${obj.r}-${obj.c}`);
-                        cell.classList.remove('filled', 'clearing');
+                        cell.className = 'cell'; // Reset komplett
                     });
                     
-                    score += (linesCleared * 10) * comboMultiplier;
+                    // Combo Text ausblenden nach kurzer Zeit
+                    if(isCombo) {
+                        setTimeout(() => {
+                            comboEl.style.opacity = '0';
+                            comboEl.style.transform = 'scale(1)';
+                            document.body.classList.remove('combo-mode');
+                        }, 1500);
+                    }
+
                     updateBoardVisuals();
                     checkSpawnRefill();
-                }, 400); // Entspricht der CSS Animation Time
+                }, 500); 
 
             } else {
-                // Kein Clear
-                movesWithoutClear++;
-                if(movesWithoutClear > 2) {
-                    comboMultiplier = 0;
-                    document.body.classList.remove('combo-mode');
-                    comboEl.style.opacity = '0';
-                }
                 checkSpawnRefill();
             }
         }
 
-        function updateComboVisuals(linesCleared) {
-            // Wenn Combo oder Multiline Clear -> Aktiviere Theme
-            if (comboMultiplier > 1 || linesCleared > 1) {
-                document.body.classList.add('combo-mode');
-                comboEl.innerText = `COMBO x${comboMultiplier}!`;
-                comboEl.style.opacity = '1';
-            }
-        }
-
- function checkSpawnRefill() {
-            // 1. Sind alle Steine weg?
+        function checkSpawnRefill() {
             const shapes = Array.from(spawnEl.querySelectorAll('.shape'));
-            
-            // Wichtig: Wir prüfen, ob die Container leer sind ODER ob gar keine Shapes mehr da sind
-            // (Manchmal bleibt ein leerer Container stehen)
             if(shapes.length === 0) {
                 spawnShapes();
             }
-            
-            // 2. Game Over prüfen - mit etwas mehr Verzögerung für Sicherheit
             setTimeout(() => {
                 checkGameOver();
-            }, 250); // Erhöht auf 250ms, damit der Browser Zeit zum Rendern hat
+            }, 250);
         }
 
         function checkGameOver() {
-            // Hol alle Steine, die JETZT gerade verfügbar sind
             const shapes = Array.from(spawnEl.querySelectorAll('.shape'));
-            
-            if (shapes.length === 0) return; // Keine Steine da? Dann kein Game Over möglich.
+            if (shapes.length === 0) return;
 
             let movePossible = false;
-
-            // Prüfe jeden verfügbaren Stein
             for (let s = 0; s < shapes.length; s++) {
                 const shapeEl = shapes[s];
                 const matrix = JSON.parse(shapeEl.dataset.matrix);
-
-                // Prüfe für diesen Stein JEDE mögliche Position auf dem Brett
                 for (let r = 0; r < BOARD_SIZE; r++) {
                     for (let c = 0; c < BOARD_SIZE; c++) {
                         if (canPlace(matrix, r, c)) {
                             movePossible = true;
-                            break; // Dieser Stein passt irgendwo! Spiel geht weiter.
+                            break; 
                         }
                     }
                     if (movePossible) break;
@@ -575,11 +568,11 @@
                 if (movePossible) break;
             }
 
-            // Wenn nach Prüfung ALLER Steine kein Move möglich war -> Game Over
             if (!movePossible) {
                 showGameOver();
             }
         }
+        
         function showGameOver() {
             document.getElementById('final-score').innerText = 'Score: ' + score;
             document.getElementById('game-over-overlay').classList.remove('hidden');
@@ -587,21 +580,12 @@
 
         function resetGame() {
             score = 0;
-            comboMultiplier = 0;
-            movesWithoutClear = 0;
             grid = Array(BOARD_SIZE).fill().map(() => Array(BOARD_SIZE).fill(0));
-            
-            // UI Reset
             updateBoardVisuals();
             document.getElementById('game-over-overlay').classList.add('hidden');
-            document.body.classList.remove('combo-mode');
-            comboEl.style.opacity = '0';
-            
-            // Neue Steine
             spawnShapes();
         }
 
-        // Start
         initBoard();
         spawnShapes();
 
