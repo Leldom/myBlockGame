@@ -6,21 +6,33 @@
     
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="MyBlocks">
+    <meta name="apple-mobile-web-app-title" content="BlockBlast">
     
-    <title>My Block Game</title>
+    <title>Block Blast Clone</title>
     <style>
         :root {
+            /* Standard Theme (Deep Blue) */
             --bg-color: #1a1a2e;
             --grid-bg: #16213e;
             --cell-empty: #0f3460;
             --cell-filled: #e94560;
+            --cell-preview: rgba(233, 69, 96, 0.4);
+            --text-color: #fff;
             --gap: 4px;
+        }
+
+        /* Combo Theme (Fire / Gold) - Wird per JS aktiviert */
+        body.combo-mode {
+            --bg-color: #2e1a1a;
+            --grid-bg: #3e1616;
+            --cell-empty: #600f0f;
+            --cell-filled: #ffcc00; /* Gold */
+            --cell-preview: rgba(255, 204, 0, 0.4);
         }
 
         body {
             background-color: var(--bg-color);
-            color: white;
+            color: var(--text-color);
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             margin: 0;
             height: 100vh;
@@ -28,17 +40,27 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            overflow: hidden; /* Wichtig: Kein Scrollen */
-            touch-action: none; /* Wichtig für Drag & Drop */
+            overflow: hidden;
+            touch-action: none;
+            transition: background-color 0.5s ease;
         }
 
-        #score-board {
-            font-size: 2rem;
-            font-weight: bold;
+        #ui-top {
+            display: flex;
+            justify-content: space-between;
+            width: 90vw;
+            max-width: 400px;
             margin-bottom: 20px;
+            font-size: 1.5rem;
+            font-weight: bold;
         }
 
-        /* Das 8x8 Gitter */
+        #combo-display {
+            opacity: 0;
+            color: #ffcc00;
+            transition: opacity 0.3s;
+        }
+
         #game-board {
             display: grid;
             grid-template-columns: repeat(8, 1fr);
@@ -46,25 +68,43 @@
             gap: var(--gap);
             background-color: var(--grid-bg);
             padding: var(--gap);
-            border-radius: 8px;
-            width: 90vw; /* Responsive */
+            border-radius: 12px;
+            width: 90vw;
             height: 90vw;
             max-width: 400px;
             max-height: 400px;
+            transition: background-color 0.5s ease;
+            position: relative; /* Für Effekte */
         }
 
         .cell {
             background-color: var(--cell-empty);
             border-radius: 4px;
-            transition: background-color 0.2s;
+            transition: background-color 0.2s, transform 0.2s;
         }
         
         .cell.filled {
             background-color: var(--cell-filled);
-            box-shadow: inset 0 0 10px rgba(0,0,0,0.3);
+            box-shadow: inset 0 0 5px rgba(0,0,0,0.2);
         }
 
-        /* Bereich für die neuen Steine */
+        /* Vorschau (Ghost) */
+        .cell.preview {
+            background-color: var(--cell-preview);
+            box-shadow: 0 0 5px var(--cell-filled);
+        }
+
+        /* Animation beim Löschen */
+        .cell.clearing {
+            animation: flashAndShrink 0.4s forwards;
+        }
+
+        @keyframes flashAndShrink {
+            0% { background-color: #fff; transform: scale(1); }
+            50% { background-color: #fff; transform: scale(1.1); }
+            100% { background-color: var(--cell-empty); transform: scale(0); }
+        }
+
         #spawn-area {
             margin-top: 40px;
             display: flex;
@@ -82,11 +122,9 @@
             justify-content: center;
         }
 
-        /* Der eigentliche Stein (CSS Grid für die Form) */
         .shape {
             display: grid;
             gap: 2px;
-            pointer-events: auto; /* Muss greifbar sein */
         }
         
         .shape-block {
@@ -96,19 +134,22 @@
             border-radius: 2px;
         }
 
-        /* Klasse während des Draggings */
         .dragging {
             position: fixed;
             z-index: 1000;
-            pointer-events: none; /* Damit wir das Element DAHINTER erkennen */
+            pointer-events: none;
             opacity: 0.9;
-            transform: scale(1.2) translate(-50%, -150%); /* Versatz, damit Finger nicht im Weg ist */
+            transform: scale(1.2) translate(-50%, -150%);
         }
     </style>
 </head>
 <body>
 
-    <div id="score-board">0</div>
+    <div id="ui-top">
+        <div id="score-board">Score: 0</div>
+        <div id="combo-display">COMBO!</div>
+    </div>
+    
     <div id="game-board"></div>
     <div id="spawn-area"></div>
 
@@ -117,34 +158,38 @@
         const boardEl = document.getElementById('game-board');
         const spawnEl = document.getElementById('spawn-area');
         const scoreEl = document.getElementById('score-board');
+        const comboEl = document.getElementById('combo-display');
         
         let grid = Array(BOARD_SIZE).fill().map(() => Array(BOARD_SIZE).fill(0));
         let score = 0;
+        let comboMultiplier = 0;
+        let movesWithoutClear = 0;
 
-        // 1. Initialisierung des Boards
+        // --- 1. SETUP ---
+
         function initBoard() {
             boardEl.innerHTML = '';
             for (let r = 0; r < BOARD_SIZE; r++) {
                 for (let c = 0; c < BOARD_SIZE; c++) {
                     let cell = document.createElement('div');
                     cell.classList.add('cell');
-                    cell.dataset.row = r;
-                    cell.dataset.col = c;
+                    // IDs für schnelleren Zugriff
+                    cell.id = `cell-${r}-${c}`;
                     boardEl.appendChild(cell);
                 }
             }
         }
 
-        // 2. Formen-Definitionen (Als 2D Matrizen: 1 = Block, 0 = Leer)
+        // Formen
         const SHAPES = [
-            [[1]], // 1x1
-            [[1,1,1]], // Linie 3
-            [[1,1,1,1]], // Linie 4
-            [[1,1,1,1,1]], // Linie 5
-            [[1,1],[1,0]], // 2x2 Ecke
-            [[1,1],[1,1]], // 2x2 Würfel
-            [[1,0],[1,0],[1,1]], // L-Form
-            [[1,1,1],[0,1,0]] // T-Form
+            [[1]], 
+            [[1,1]], [[1],[1]],
+            [[1,1,1]], [[1],[1],[1]],
+            [[1,1],[1,1]], 
+            [[1,0],[1,0],[1,1]], // L
+            [[0,1],[0,1],[1,1]], // Reverse L
+            [[1,1,1],[0,1,0]], // T
+            [[1,1,0],[0,1,1]]  // Z
         ];
 
         function createShapeElement(matrix) {
@@ -152,130 +197,143 @@
             shapeDiv.classList.add('shape');
             shapeDiv.style.gridTemplateColumns = `repeat(${matrix[0].length}, 20px)`;
             
-            // Matrix rendern
-            matrix.forEach((row, rIndex) => {
-                row.forEach((val, cIndex) => {
+            matrix.forEach((row) => {
+                row.forEach((val) => {
                     const block = document.createElement('div');
                     if (val === 1) block.classList.add('shape-block');
                     shapeDiv.appendChild(block);
                 });
             });
-
             shapeDiv.dataset.matrix = JSON.stringify(matrix);
             return shapeDiv;
         }
 
         function spawnShapes() {
             spawnEl.innerHTML = '';
-            // 3 neue Formen generieren
             for(let i=0; i<3; i++) {
                 const container = document.createElement('div');
                 container.classList.add('shape-container');
                 const randomShape = SHAPES[Math.floor(Math.random() * SHAPES.length)];
                 const shapeEl = createShapeElement(randomShape);
-                
                 addDragLogic(shapeEl);
                 container.appendChild(shapeEl);
                 spawnEl.appendChild(container);
             }
         }
 
-        // 3. Drag & Drop Logik
+        // --- 2. LOGIK & GHOST EFFEKT ---
+
+        // Helper: Grid-Koordinaten aus Bildschirmposition berechnen
+        function getGridCoords(x, y, shapeEl) {
+            const boardRect = boardEl.getBoundingClientRect();
+            // Finger Offset Korrektur (-150% Height, siehe CSS)
+            const fingerY_Correction = y - (shapeEl.offsetHeight * 1.5); 
+
+            if (x > boardRect.left && x < boardRect.right && 
+                fingerY_Correction > boardRect.top && fingerY_Correction < boardRect.bottom) {
+                
+                const cellSize = boardRect.width / BOARD_SIZE;
+                const col = Math.floor((x - boardRect.left - (shapeEl.offsetWidth/2)) / cellSize); 
+                const row = Math.floor((fingerY_Correction - boardRect.top) / cellSize);
+                return { r: row, c: col, valid: true };
+            }
+            return { r: 0, c: 0, valid: false };
+        }
+
+        function clearPreview() {
+            document.querySelectorAll('.cell.preview').forEach(el => el.classList.remove('preview'));
+        }
+
+        function showPreview(matrix, r, c) {
+            clearPreview();
+            if (!canPlace(matrix, r, c)) return;
+
+            for (let i = 0; i < matrix.length; i++) {
+                for (let j = 0; j < matrix[i].length; j++) {
+                    if (matrix[i][j] === 1) {
+                        const cell = document.getElementById(`cell-${r+i}-${c+j}`);
+                        if (cell) cell.classList.add('preview');
+                    }
+                }
+            }
+        }
+
         function addDragLogic(el) {
-            let startX, startY;
-            
+            let clone;
+            const matrix = JSON.parse(el.dataset.matrix);
+
             const touchStart = (e) => {
-                e.preventDefault(); // Verhindert Scrollen
+                e.preventDefault();
                 const touch = e.touches[0];
                 
-                // Klonen für das Dragging
-                const clone = el.cloneNode(true);
+                clone = el.cloneNode(true);
                 clone.classList.add('dragging');
-                clone.style.width = el.offsetWidth + 'px'; // Größe fixieren
+                clone.style.width = el.offsetWidth + 'px';
                 document.body.appendChild(clone);
                 
-                const moveAt = (pageX, pageY) => {
-                    clone.style.left = pageX + 'px';
-                    clone.style.top = pageY + 'px';
-                };
-                
                 moveAt(touch.pageX, touch.pageY);
-                el.style.opacity = '0'; // Original unsichtbar machen
+                el.style.opacity = '0';
 
                 const touchMove = (e) => {
                     const t = e.touches[0];
                     moveAt(t.pageX, t.pageY);
+                    
+                    // --- NEU: VORSCHAU ---
+                    const coords = getGridCoords(t.clientX, t.clientY, clone);
+                    if (coords.valid) {
+                        showPreview(matrix, coords.r, coords.c);
+                    } else {
+                        clearPreview();
+                    }
                 };
 
                 const touchEnd = (e) => {
                     document.removeEventListener('touchmove', touchMove);
                     document.removeEventListener('touchend', touchEnd);
+                    clearPreview(); // Vorschau entfernen
                     
-                    // Wo haben wir losgelassen? (Nutze changedTouches)
                     const t = e.changedTouches[0];
-                    checkDrop(clone, el, t.clientX, t.clientY);
+                    const coords = getGridCoords(t.clientX, t.clientY, clone);
+
+                    if (coords.valid && canPlace(matrix, coords.r, coords.c)) {
+                        placeShape(matrix, coords.r, coords.c);
+                        clone.remove();
+                        el.parentNode.innerHTML = ''; 
+                        
+                        // Zuerst visuell updaten, dann Logik prüfen
+                        updateBoardVisuals(); 
+                        
+                        // Async check für Animationen
+                        setTimeout(() => {
+                            checkLinesAndSpawn();
+                        }, 50);
+
+                    } else {
+                        // Reset
+                        clone.remove();
+                        el.style.opacity = '1';
+                    }
                 };
 
                 document.addEventListener('touchmove', touchMove, {passive: false});
                 document.addEventListener('touchend', touchEnd);
             };
 
+            const moveAt = (pageX, pageY) => {
+                clone.style.left = pageX + 'px';
+                clone.style.top = pageY + 'px';
+            };
+
             el.addEventListener('touchstart', touchStart, {passive: false});
         }
 
-        function checkDrop(draggedEl, originalEl, x, y) {
-            // Umrechnung Bildschirm -> Grid
-            // Wir prüfen, welches Element UNTER dem Finger ist (mit einem Offset, da der User den Stein oft etwas höher sieht)
-            // Hinweis: Im echten Spiel müsstest du den Offset des Fingers zum Stein genau berechnen.
-            // Hier ein einfacher Ansatz: Wir nehmen den Punkt unter dem Finger - 50px (wegen Offset)
-            
-            const boardRect = boardEl.getBoundingClientRect();
-            // Offset korrigieren (siehe CSS translate -150%)
-            const fingerY_Correction = y - (draggedEl.offsetHeight * 1.5); 
-            
-            // Einfache Kollisionserkennung: Ist der Finger (korrigiert) über dem Board?
-            if (x > boardRect.left && x < boardRect.right && 
-                fingerY_Correction > boardRect.top && fingerY_Correction < boardRect.bottom) {
-                
-                // Berechne relative Position im Grid (0-7)
-                // Dies ist vereinfacht und nimmt die linke obere Ecke des Steins
-                const cellSize = boardRect.width / BOARD_SIZE;
-                const col = Math.floor((x - boardRect.left - (draggedEl.offsetWidth/2)) / cellSize); 
-                const row = Math.floor((fingerY_Correction - boardRect.top) / cellSize);
-
-                const matrix = JSON.parse(originalEl.dataset.matrix);
-
-                if (canPlace(matrix, row, col)) {
-                    placeShape(matrix, row, col);
-                    draggedEl.remove();
-                    originalEl.parentNode.innerHTML = ''; // Entferne aus Spawn-Area
-                    updateBoard();
-                    checkLines();
-                    
-                    // Neue Steine wenn leer
-                    if(spawnEl.children.length === 0 || 
-                       Array.from(spawnEl.children).every(c => c.innerHTML === '')) {
-                        spawnShapes();
-                    }
-                    return;
-                }
-            }
-
-            // Wenn ungültig: Zurücksetzen
-            draggedEl.remove();
-            originalEl.style.opacity = '1';
-        }
-
-        // 4. Spiellogik
         function canPlace(matrix, r, c) {
             for (let i = 0; i < matrix.length; i++) {
                 for (let j = 0; j < matrix[i].length; j++) {
                     if (matrix[i][j] === 1) {
                         let targetR = r + i;
                         let targetC = c + j;
-                        // Außerhalb des Grids?
                         if (targetR < 0 || targetR >= BOARD_SIZE || targetC < 0 || targetC >= BOARD_SIZE) return false;
-                        // Schon belegt?
                         if (grid[targetR][targetC] === 1) return false;
                     }
                 }
@@ -293,40 +351,95 @@
             }
         }
 
-        function updateBoard() {
-            const cells = document.querySelectorAll('.cell');
-            cells.forEach(cell => {
-                const r = parseInt(cell.dataset.row);
-                const c = parseInt(cell.dataset.col);
-                if (grid[r][c] === 1) cell.classList.add('filled');
-                else cell.classList.remove('filled');
-            });
-            scoreEl.innerText = score;
+        function updateBoardVisuals() {
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                for (let c = 0; c < BOARD_SIZE; c++) {
+                    const cell = document.getElementById(`cell-${r}-${c}`);
+                    // Reset classes carefully (don't remove animation classes yet)
+                    if (grid[r][c] === 1) cell.classList.add('filled');
+                    else if (!cell.classList.contains('clearing')) { 
+                        cell.classList.remove('filled');
+                    }
+                }
+            }
+            scoreEl.innerText = `Score: ${score}`;
         }
 
-        function checkLines() {
-            let rowsClears = [];
-            let colsClears = [];
+        // --- 3. CLEAR LOGIK & ANIMATIONEN ---
+
+        function checkLinesAndSpawn() {
+            let cellsToClear = []; // Speichert {r, c} Objekte
+            let linesCleared = 0;
 
             // Zeilen prüfen
             for(let r=0; r<BOARD_SIZE; r++) {
                 if(grid[r].every(val => val === 1)) {
-                    grid[r].fill(0);
-                    score += 10;
+                    linesCleared++;
+                    for(let c=0; c<BOARD_SIZE; c++) cellsToClear.push({r, c});
                 }
             }
-            // Spalten prüfen (etwas komplexer zu lesen)
+            // Spalten prüfen
             for(let c=0; c<BOARD_SIZE; c++) {
                 let full = true;
-                for(let r=0; r<BOARD_SIZE; r++) {
-                    if(grid[r][c] === 0) full = false;
-                }
+                for(let r=0; r<BOARD_SIZE; r++) if(grid[r][c] === 0) full = false;
                 if(full) {
-                    for(let r=0; r<BOARD_SIZE; r++) grid[r][c] = 0;
-                    score += 10;
+                    linesCleared++;
+                    for(let r=0; r<BOARD_SIZE; r++) cellsToClear.push({r, c});
                 }
             }
-            updateBoard();
+
+            if (cellsToClear.length > 0) {
+                // COMBO LOGIK
+                comboMultiplier++;
+                movesWithoutClear = 0;
+                updateComboVisuals(linesCleared);
+
+                // 1. Animation starten
+                cellsToClear.forEach(obj => {
+                    const cell = document.getElementById(`cell-${obj.r}-${obj.c}`);
+                    cell.classList.add('clearing');
+                });
+
+                // 2. Warten, dann logisch löschen
+                setTimeout(() => {
+                    cellsToClear.forEach(obj => {
+                        grid[obj.r][obj.c] = 0;
+                        const cell = document.getElementById(`cell-${obj.r}-${obj.c}`);
+                        cell.classList.remove('filled', 'clearing');
+                    });
+                    
+                    score += (linesCleared * 10) * comboMultiplier;
+                    updateBoardVisuals();
+                    checkSpawnRefill();
+                }, 400); // Entspricht der CSS Animation Time
+
+            } else {
+                // Kein Clear
+                movesWithoutClear++;
+                if(movesWithoutClear > 2) {
+                    comboMultiplier = 0;
+                    document.body.classList.remove('combo-mode');
+                    comboEl.style.opacity = '0';
+                }
+                checkSpawnRefill();
+            }
+        }
+
+        function updateComboVisuals(linesCleared) {
+            // Wenn Combo oder Multiline Clear -> Aktiviere Theme
+            if (comboMultiplier > 1 || linesCleared > 1) {
+                document.body.classList.add('combo-mode');
+                comboEl.innerText = `COMBO x${comboMultiplier}!`;
+                comboEl.style.opacity = '1';
+            }
+        }
+
+        function checkSpawnRefill() {
+            if(spawnEl.children.length === 0 || 
+               Array.from(spawnEl.children).every(c => c.innerHTML === '')) {
+                spawnShapes();
+            }
+            // Optional: Game Over Check hier einfügen
         }
 
         // Start
