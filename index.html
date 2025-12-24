@@ -6,7 +6,7 @@
     
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>MyBlockGame - Color Edition</title>
+    <title>MyBlockGame - Color Fix</title>
     <style>
         :root {
             --bg-color: #1a1a2e;
@@ -25,7 +25,7 @@
         .c-6 { background-color: #a000f0; box-shadow: inset 0 0 4px rgba(0,0,0,0.25); } /* Lila */
         .c-7 { background-color: #f00000; box-shadow: inset 0 0 4px rgba(0,0,0,0.25); } /* Rot */
 
-        /* Geister-Steine (Vorschau) - Halbtransparent */
+        /* Geister-Steine (Vorschau) */
         .preview.c-1 { background-color: rgba(0, 240, 240, 0.4); box-shadow: 0 0 5px #00f0f0; }
         .preview.c-2 { background-color: rgba(0, 0, 240, 0.4); box-shadow: 0 0 5px #0000f0; }
         .preview.c-3 { background-color: rgba(240, 160, 0, 0.4); box-shadow: 0 0 5px #f0a000; }
@@ -35,9 +35,7 @@
         .preview.c-7 { background-color: rgba(240, 0, 0, 0.4); box-shadow: 0 0 5px #f00000; }
 
         body.combo-mode {
-            /* Hintergrund wird rötlicher bei Combo */
             background-color: #2e1a1a;
-            transition: background-color 0.5s;
         }
 
        body {
@@ -133,7 +131,13 @@
             width: 20px;
             height: 20px;
             border-radius: 2px;
-            /* Farbe wird per Klasse gesetzt */
+            /* FALLBACK FARBE: Falls JS versagt, sind sie grau sichtbar */
+            background-color: #555; 
+        }
+
+        /* Wenn eine Farbe gesetzt ist, überschreibe das Grau */
+        .shape-block[class*="c-"] {
+            /* Hier passiert nichts, die background-color kommt von .c-1 etc */
         }
 
         .dragging {
@@ -210,7 +214,6 @@
         const scoreEl = document.getElementById('score-board');
         const comboEl = document.getElementById('combo-display');
         
-        // Grid speichert jetzt IDs: 0 = leer, 1-7 = Farbe
         let grid = Array(BOARD_SIZE).fill().map(() => Array(BOARD_SIZE).fill(0));
         let score = 0;
 
@@ -226,6 +229,7 @@
             }
         }
 
+        // Alle Formen
         const SHAPES = [
             [[1]], 
             [[1,1]], [[1],[1]], 
@@ -248,7 +252,6 @@
             shapeDiv.classList.add('shape');
             shapeDiv.style.gridTemplateColumns = `repeat(${matrix[0].length}, 20px)`;
             
-            // Speichere die Farb-ID im Dataset für später
             shapeDiv.dataset.colorId = colorId;
             shapeDiv.dataset.matrix = JSON.stringify(matrix);
 
@@ -257,7 +260,7 @@
                     const block = document.createElement('div');
                     if (val === 1) {
                         block.classList.add('shape-block');
-                        block.classList.add(`c-${colorId}`); // Farbe zuweisen
+                        block.classList.add(`c-${colorId}`); // Hier wird die Farbe gesetzt
                     }
                     shapeDiv.appendChild(block);
                 });
@@ -272,8 +275,7 @@
                 container.classList.add('shape-container');
                 
                 const randomShape = SHAPES[Math.floor(Math.random() * SHAPES.length)];
-                // Zufällige Farbe 1 bis 7
-                const randomColor = Math.floor(Math.random() * 7) + 1;
+                const randomColor = Math.floor(Math.random() * 7) + 1; // 1 bis 7
                 
                 const shapeEl = createShapeElement(randomShape, randomColor);
                 addDragLogic(shapeEl);
@@ -283,13 +285,8 @@
         }
 
         function clearPreview() {
-            // Entfernt alle Preview-Klassen (auch die Farbspezifischen)
             document.querySelectorAll('.cell.preview').forEach(el => {
-                el.className = 'cell'; // Reset auf Basis-Klasse
-                // Falls die Zelle eigentlich gefüllt ist, müssen wir das visualisieren
-                // Das macht updateBoardVisuals normalerweise, aber hier reicht simpler Reset,
-                // da wir beim Draggen dauernd updaten.
-                // Besser:
+                el.className = 'cell'; 
                 const [_, r, c] = el.id.split('-');
                 const val = grid[r][c];
                 if(val > 0) el.classList.add(`c-${val}`);
@@ -406,7 +403,6 @@
                     if (matrix[i][j] === 1) {
                         let targetR = r + i;
                         let targetC = c + j;
-                        // Out of bounds oder Feld nicht 0 (belegt)
                         if (targetR < 0 || targetR >= BOARD_SIZE || targetC < 0 || targetC >= BOARD_SIZE) return false;
                         if (grid[targetR][targetC] !== 0) return false;
                     }
@@ -416,12 +412,10 @@
         }
 
         function placeShape(matrix, r, c, colorId) {
-            // +10 Punkte für das bloße Platzieren
             score += 10;
             for (let i = 0; i < matrix.length; i++) {
                 for (let j = 0; j < matrix[i].length; j++) {
                     if (matrix[i][j] === 1) {
-                        // Speichere die Farb-ID im Grid (String zu Int konvertieren zur Sicherheit)
                         grid[r + i][c + j] = parseInt(colorId);
                     }
                 }
@@ -434,9 +428,8 @@
                     const cell = document.getElementById(`cell-${r}-${c}`);
                     const val = grid[r][c];
                     
-                    // Zuerst alle Farbklassen entfernen
                     cell.className = 'cell'; 
-                    if(cell.classList.contains('clearing')) cell.classList.add('clearing'); // Animation erhalten
+                    if(cell.classList.contains('clearing')) cell.classList.add('clearing');
 
                     if (val > 0) {
                         cell.classList.add(`c-${val}`);
@@ -450,14 +443,12 @@
             let cellsToClear = []; 
             let linesCleared = 0;
 
-            // Zeilen prüfen (alle != 0)
             for(let r=0; r<BOARD_SIZE; r++) {
                 if(grid[r].every(val => val !== 0)) {
                     linesCleared++;
                     for(let c=0; c<BOARD_SIZE; c++) cellsToClear.push({r, c});
                 }
             }
-            // Spalten prüfen
             for(let c=0; c<BOARD_SIZE; c++) {
                 let full = true;
                 for(let r=0; r<BOARD_SIZE; r++) if(grid[r][c] === 0) full = false;
@@ -468,7 +459,6 @@
             }
 
             if (cellsToClear.length > 0) {
-                // Duplikate entfernen (Kreuzungspunkte)
                 const uniqueCells = [];
                 const map = new Map();
                 for (const item of cellsToClear) {
@@ -479,22 +469,17 @@
                     }
                 }
 
-                // --- SCORING & COMBO LOGIK ---
-                // Nur bei 3 oder mehr Linien gleichzeitig gibt es den "COMBO" Status
                 let points = 0;
                 let isCombo = false;
 
                 if (linesCleared === 1) points = 100;
                 else if (linesCleared === 2) points = 300;
-                else if (linesCleared === 3) { points = 600; isCombo = true; } // Combo Start
-                else if (linesCleared === 4) { points = 1000; isCombo = true; }
-                else if (linesCleared >= 5)  { points = 2000; isCombo = true; }
+                else if (linesCleared >= 3) { 
+                    points = 600 * linesCleared; 
+                    isCombo = true; 
+                }
 
                 if (isCombo) {
-                    // Multiplikator logik: Je mehr Linien, desto heftiger
-                    const multiplier = linesCleared; 
-                    points = points * multiplier;
-                    
                     document.body.classList.add('combo-mode');
                     comboEl.innerText = `${linesCleared}x COMBO!`;
                     comboEl.style.opacity = '1';
@@ -507,7 +492,6 @@
 
                 score += points;
 
-                // Animation starten
                 uniqueCells.forEach(obj => {
                     const cell = document.getElementById(`cell-${obj.r}-${obj.c}`);
                     cell.classList.add('clearing');
@@ -517,10 +501,9 @@
                     uniqueCells.forEach(obj => {
                         grid[obj.r][obj.c] = 0;
                         const cell = document.getElementById(`cell-${obj.r}-${obj.c}`);
-                        cell.className = 'cell'; // Reset komplett
+                        cell.className = 'cell';
                     });
                     
-                    // Combo Text ausblenden nach kurzer Zeit
                     if(isCombo) {
                         setTimeout(() => {
                             comboEl.style.opacity = '0';
@@ -569,13 +552,9 @@
             }
 
             if (!movePossible) {
-                showGameOver();
+                document.getElementById('final-score').innerText = 'Score: ' + score;
+                document.getElementById('game-over-overlay').classList.remove('hidden');
             }
-        }
-        
-        function showGameOver() {
-            document.getElementById('final-score').innerText = 'Score: ' + score;
-            document.getElementById('game-over-overlay').classList.remove('hidden');
         }
 
         function resetGame() {
@@ -588,7 +567,6 @@
 
         initBoard();
         spawnShapes();
-
     </script>
 </body>
 </html>
