@@ -3,10 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>MyBlockGame - Final Fix</title>
+    <title>MyBlockGame - Ultimate Fix</title>
     <style>
         :root {
             --bg-color: #1a1a2e;
@@ -16,11 +15,7 @@
             --gap: 4px;
         }
 
-        body.combo-mode {
-            background-color: #2e1a1a;
-        }
-
-       body {
+        body {
             background-color: var(--bg-color);
             color: var(--text-color);
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -37,6 +32,10 @@
             -webkit-touch-callout: none;
             -webkit-tap-highlight-color: transparent;
             transition: background-color 0.5s ease;
+        }
+
+        body.combo-mode {
+            background-color: #2e1a1a;
         }
 
         #ui-top {
@@ -71,12 +70,40 @@
             transition: background-color 0.5s ease;
         }
 
-        /* BASIS STYLE FÜR ZELLEN (Muss vor den Farben kommen) */
+        /* --- ZELLEN --- */
         .cell {
             background-color: var(--cell-empty);
             border-radius: 4px;
             transition: transform 0.2s;
         }
+
+        /* --- BLÖCKE (Basis) --- */
+        .shape-block {
+            width: 20px;
+            height: 20px;
+            border-radius: 2px;
+            background-color: #555; /* Fallback Grau */
+        }
+
+        /* --- FARBEN (Mit hoher Spezifität) --- */
+        /* Wir verbinden die Klassen (.shape-block UND .c-1), das macht die Regel "stärker" */
+        .shape-block.c-1, .cell.c-1 { background-color: #00f0f0; box-shadow: inset 0 0 4px rgba(0,0,0,0.25); }
+        .shape-block.c-2, .cell.c-2 { background-color: #0000f0; box-shadow: inset 0 0 4px rgba(0,0,0,0.25); }
+        .shape-block.c-3, .cell.c-3 { background-color: #f0a000; box-shadow: inset 0 0 4px rgba(0,0,0,0.25); }
+        .shape-block.c-4, .cell.c-4 { background-color: #f0f000; box-shadow: inset 0 0 4px rgba(0,0,0,0.25); }
+        .shape-block.c-5, .cell.c-5 { background-color: #00f000; box-shadow: inset 0 0 4px rgba(0,0,0,0.25); }
+        .shape-block.c-6, .cell.c-6 { background-color: #a000f0; box-shadow: inset 0 0 4px rgba(0,0,0,0.25); }
+        .shape-block.c-7, .cell.c-7 { background-color: #f00000; box-shadow: inset 0 0 4px rgba(0,0,0,0.25); }
+
+        /* --- PREVIEW / GHOST --- */
+        .cell.preview { opacity: 0.5; }
+        .cell.preview.c-1 { background-color: #00f0f0; box-shadow: 0 0 5px #00f0f0; }
+        .cell.preview.c-2 { background-color: #0000f0; box-shadow: 0 0 5px #0000f0; }
+        .cell.preview.c-3 { background-color: #f0a000; box-shadow: 0 0 5px #f0a000; }
+        .cell.preview.c-4 { background-color: #f0f000; box-shadow: 0 0 5px #f0f000; }
+        .cell.preview.c-5 { background-color: #00f000; box-shadow: 0 0 5px #00f000; }
+        .cell.preview.c-6 { background-color: #a000f0; box-shadow: 0 0 5px #a000f0; }
+        .cell.preview.c-7 { background-color: #f00000; box-shadow: 0 0 5px #f00000; }
 
         .cell.clearing {
             animation: flashAndShrink 0.5s forwards;
@@ -110,14 +137,6 @@
             gap: 2px;
         }
         
-        /* BASIS STYLE FÜR BLÖCKE (Muss vor den Farben kommen) */
-        .shape-block {
-            width: 20px;
-            height: 20px;
-            border-radius: 2px;
-            background-color: #555; /* Fallback */
-        }
-
         .dragging {
             position: fixed;
             z-index: 1000;
@@ -165,25 +184,6 @@
             margin-top: 20px;
             font-weight: bold;
         }
-
-        /* --- FARBPALETTE (JETZT GANZ UNTEN - DAMIT SIE GEWINNT) --- */
-        .c-1 { background-color: #00f0f0 !important; box-shadow: inset 0 0 4px rgba(0,0,0,0.25); } /* Cyan */
-        .c-2 { background-color: #0000f0 !important; box-shadow: inset 0 0 4px rgba(0,0,0,0.25); } /* Blau */
-        .c-3 { background-color: #f0a000 !important; box-shadow: inset 0 0 4px rgba(0,0,0,0.25); } /* Orange */
-        .c-4 { background-color: #f0f000 !important; box-shadow: inset 0 0 4px rgba(0,0,0,0.25); } /* Gelb */
-        .c-5 { background-color: #00f000 !important; box-shadow: inset 0 0 4px rgba(0,0,0,0.25); } /* Grün */
-        .c-6 { background-color: #a000f0 !important; box-shadow: inset 0 0 4px rgba(0,0,0,0.25); } /* Lila */
-        .c-7 { background-color: #f00000 !important; box-shadow: inset 0 0 4px rgba(0,0,0,0.25); } /* Rot */
-
-        /* Geister-Steine (Vorschau) */
-        .preview.c-1 { background-color: rgba(0, 240, 240, 0.4) !important; box-shadow: 0 0 5px #00f0f0; }
-        .preview.c-2 { background-color: rgba(0, 0, 240, 0.4) !important; box-shadow: 0 0 5px #0000f0; }
-        .preview.c-3 { background-color: rgba(240, 160, 0, 0.4) !important; box-shadow: 0 0 5px #f0a000; }
-        .preview.c-4 { background-color: rgba(240, 240, 0, 0.4) !important; box-shadow: 0 0 5px #f0f000; }
-        .preview.c-5 { background-color: rgba(0, 240, 0, 0.4) !important; box-shadow: 0 0 5px #00f000; }
-        .preview.c-6 { background-color: rgba(160, 0, 240, 0.4) !important; box-shadow: 0 0 5px #a000f0; }
-        .preview.c-7 { background-color: rgba(240, 0, 0, 0.4) !important; box-shadow: 0 0 5px #f00000; }
-
     </style>
 </head>
 <body>
@@ -256,7 +256,7 @@
                     const block = document.createElement('div');
                     if (val === 1) {
                         block.classList.add('shape-block');
-                        block.classList.add(`c-${colorId}`); 
+                        block.classList.add(`c-${colorId}`);
                     }
                     shapeDiv.appendChild(block);
                 });
@@ -282,10 +282,17 @@
 
         function clearPreview() {
             document.querySelectorAll('.cell.preview').forEach(el => {
-                el.className = 'cell'; 
+                el.classList.remove('preview');
+                // Klassen zurücksetzen (entfernt c-1, c-2 etc. von der Preview)
+                el.className = 'cell';
+                
+                // Wenn Zelle gefüllt ist, Farbe wiederherstellen
                 const [_, r, c] = el.id.split('-');
                 const val = grid[r][c];
                 if(val > 0) el.classList.add(`c-${val}`);
+                else if (document.querySelector('.clearing') && el.classList.contains('clearing')) {
+                     el.classList.add('clearing'); // Animation beibehalten
+                }
             });
         }
 
@@ -424,12 +431,21 @@
                     const cell = document.getElementById(`cell-${r}-${c}`);
                     const val = grid[r][c];
                     
-                    cell.className = 'cell'; 
-                    if(cell.classList.contains('clearing')) cell.classList.add('clearing');
-
-                    if (val > 0) {
-                        cell.classList.add(`c-${val}`);
+                    // Sauberes Reset der Klassen
+                    // 1. Basis-Klasse
+                    let newClasses = 'cell';
+                    
+                    // 2. Clearing Status erhalten
+                    if(cell.classList.contains('clearing')) {
+                        newClasses += ' clearing';
                     }
+
+                    // 3. Farbe hinzufügen, wenn gefüllt
+                    if (val > 0) {
+                        newClasses += ` c-${val}`;
+                    }
+                    
+                    cell.className = newClasses;
                 }
             }
             scoreEl.innerText = `Score: ${score}`;
