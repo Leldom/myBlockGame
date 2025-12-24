@@ -30,7 +30,7 @@
             --cell-preview: rgba(255, 204, 0, 0.4);
         }
 
-        body {
+       body {
             background-color: var(--bg-color);
             color: var(--text-color);
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -41,7 +41,14 @@
             align-items: center;
             justify-content: center;
             overflow: hidden;
-            touch-action: none;
+            
+            /* --- NEU: Verhindert Markieren & Kontextmenüs --- */
+            touch-action: none;           /* Hattest du schon: Verhindert Scrollen */
+            -webkit-user-select: none;    /* WICHTIG für Safari: Kein Text markieren */
+            user-select: none;            /* Standard: Kein Text markieren */
+            -webkit-touch-callout: none;  /* WICHTIG: Kein Lupe/Menü beim Gedrückthalten */
+            -webkit-tap-highlight-color: transparent; /* Kein grauer Kasten beim Tippen */
+            
             transition: background-color 0.5s ease;
         }
 
@@ -252,8 +259,8 @@
             [[0,0,1],[1,1,1]], // Reverse Long L
             [[1,1,1],[0,1,0]], // T
             [[0,1,0],[1,1,1]], // Reverse T
-            [[0,0,1],[1,1,1],[0,0,1]], // Long T
-            [[1,0,0],[1,1,1],[1,0,0]], // Reverse Long T
+            [[0,1],[1,1],[0,1]], // Long T
+            [[1,0],[1,1],[1,0]], // Reverse Long T
             [[1,1,0],[0,1,1]],  // Z
             [[0,1,1],[1,1,0]], // Reverse Z
             [[0,1],[1,1],[1,0]], // Z vertical
