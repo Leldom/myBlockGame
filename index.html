@@ -3,11 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    
+    <meta name="color-scheme" content="dark">
+    
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>MyBlockGame - Animation Fix</title>
+    <title>MyBlockGame - Final Mobile Fix</title>
     <style>
         :root {
+            /* Sagt dem Browser explizit: Das ist ein Dark Theme */
+            color-scheme: dark; 
+            
             --bg-color: #1a1a2e;
             --grid-bg: #16213e;
             --cell-empty: #0f3460;
@@ -26,11 +32,14 @@
             align-items: center;
             justify-content: center;
             overflow: hidden;
+            
+            /* Verhindert Text-Markierung und Zoomen */
             touch-action: none;
             -webkit-user-select: none;
             user-select: none;
             -webkit-touch-callout: none;
             -webkit-tap-highlight-color: transparent;
+            
             transition: background-color 0.2s ease;
         }
 
@@ -69,6 +78,9 @@
             max-width: 400px;
             max-height: 400px;
             transition: background-color 0.5s ease;
+            
+            /* Fix für manche Android Render-Probleme bei Grid-Gaps */
+            box-sizing: border-box;
         }
 
         /* --- ZELLEN --- */
@@ -76,7 +88,11 @@
             background-color: var(--cell-empty);
             border-radius: 4px;
             transition: transform 0.2s;
-            position: relative; /* Wichtig für z-index */
+            position: relative; 
+            
+            /* WICHTIG: Verhindert Farbmanipulation durch Browser */
+            forced-color-adjust: none;
+            -webkit-print-color-adjust: exact;
         }
 
         /* --- BLÖCKE (Basis) --- */
@@ -85,45 +101,51 @@
             height: 20px;
             border-radius: 2px;
             background-color: #555; 
+            
+            /* WICHTIG: Verhindert Farbmanipulation durch Browser */
+            forced-color-adjust: none;
+            -webkit-print-color-adjust: exact;
         }
 
         /* --- FARBEN --- */
-        .shape-block.c-1, .cell.c-1 { background-color: #00f0f0; box-shadow: inset 0 0 4px rgba(0,0,0,0.25); }
-        .shape-block.c-2, .cell.c-2 { background-color: #0000f0; box-shadow: inset 0 0 4px rgba(0,0,0,0.25); }
-        .shape-block.c-3, .cell.c-3 { background-color: #f0a000; box-shadow: inset 0 0 4px rgba(0,0,0,0.25); }
-        .shape-block.c-4, .cell.c-4 { background-color: #f0f000; box-shadow: inset 0 0 4px rgba(0,0,0,0.25); }
-        .shape-block.c-5, .cell.c-5 { background-color: #00f000; box-shadow: inset 0 0 4px rgba(0,0,0,0.25); }
-        .shape-block.c-6, .cell.c-6 { background-color: #a000f0; box-shadow: inset 0 0 4px rgba(0,0,0,0.25); }
-        .shape-block.c-7, .cell.c-7 { background-color: #f00000; box-shadow: inset 0 0 4px rgba(0,0,0,0.25); }
+        /* Wir nutzen !important um sicherzugehen, dass Samsung nichts überschreibt */
+        .shape-block.c-1, .cell.c-1 { background-color: #00f0f0 !important; box-shadow: inset 0 0 4px rgba(0,0,0,0.25); }
+        .shape-block.c-2, .cell.c-2 { background-color: #0000f0 !important; box-shadow: inset 0 0 4px rgba(0,0,0,0.25); }
+        .shape-block.c-3, .cell.c-3 { background-color: #f0a000 !important; box-shadow: inset 0 0 4px rgba(0,0,0,0.25); }
+        .shape-block.c-4, .cell.c-4 { background-color: #f0f000 !important; box-shadow: inset 0 0 4px rgba(0,0,0,0.25); }
+        .shape-block.c-5, .cell.c-5 { background-color: #00f000 !important; box-shadow: inset 0 0 4px rgba(0,0,0,0.25); }
+        .shape-block.c-6, .cell.c-6 { background-color: #a000f0 !important; box-shadow: inset 0 0 4px rgba(0,0,0,0.25); }
+        .shape-block.c-7, .cell.c-7 { background-color: #f00000 !important; box-shadow: inset 0 0 4px rgba(0,0,0,0.25); }
 
         /* --- PREVIEW --- */
         .cell.preview { opacity: 0.5; }
-        .cell.preview.c-1 { background-color: #00f0f0; box-shadow: 0 0 5px #00f0f0; }
-        .cell.preview.c-2 { background-color: #0000f0; box-shadow: 0 0 5px #0000f0; }
-        .cell.preview.c-3 { background-color: #f0a000; box-shadow: 0 0 5px #f0a000; }
-        .cell.preview.c-4 { background-color: #f0f000; box-shadow: 0 0 5px #f0f000; }
-        .cell.preview.c-5 { background-color: #00f000; box-shadow: 0 0 5px #00f000; }
-        .cell.preview.c-6 { background-color: #a000f0; box-shadow: 0 0 5px #a000f0; }
-        .cell.preview.c-7 { background-color: #f00000; box-shadow: 0 0 5px #f00000; }
+        .cell.preview.c-1 { background-color: #00f0f0 !important; box-shadow: 0 0 5px #00f0f0; }
+        .cell.preview.c-2 { background-color: #0000f0 !important; box-shadow: 0 0 5px #0000f0; }
+        .cell.preview.c-3 { background-color: #f0a000 !important; box-shadow: 0 0 5px #f0a000; }
+        .cell.preview.c-4 { background-color: #f0f000 !important; box-shadow: 0 0 5px #f0f000; }
+        .cell.preview.c-5 { background-color: #00f000 !important; box-shadow: 0 0 5px #00f000; }
+        .cell.preview.c-6 { background-color: #a000f0 !important; box-shadow: 0 0 5px #a000f0; }
+        .cell.preview.c-7 { background-color: #f00000 !important; box-shadow: 0 0 5px #f00000; }
 
-        /* --- ANIMATION FIX --- */
-        /* Wir erzwingen Weiß und legen es über alles andere */
+        /* --- ANIMATION FIX (Weißer Blitz) --- */
         .cell.clearing {
             background-color: #ffffff !important; 
             box-shadow: 0 0 15px #ffffff !important;
             z-index: 100;
             animation: flashAndShrink 0.5s forwards;
-            border: none; /* Ränder entfernen für reines Weiß */
+            border-radius: 4px; /* Sicherstellen, dass Form bleibt */
+            transform-origin: center;
         }
 
         @keyframes flashAndShrink {
             0% { 
                 transform: scale(1); 
                 opacity: 1; 
+                filter: brightness(2); /* Extra Helligkeit */
             }
             50% { 
                 transform: scale(1.1); 
-                opacity: 0.8; 
+                opacity: 0.9; 
             }
             100% { 
                 transform: scale(0); 
@@ -159,7 +181,10 @@
             pointer-events: none;
             opacity: 0.9;
             transform-origin: center center; 
+            /* Auch hier Farbschutz */
+            forced-color-adjust: none;
         }
+        
         .hidden { display: none !important; }
 
         #game-over-overlay {
@@ -244,24 +269,25 @@
             }
         }
 
+        // --- BLÖCKE LISTE (Geprüft: Vollständig) ---
         const SHAPES = [
             [[1]], // 1x1
-            [[1,1]], [[1],[1]], // 2x1
-            [[1,1,1]], [[1],[1],[1]], // 3x1
-            [[1,1,1,1]], [[1],[1],[1],[1]], // 4x1
-            [[1,1,1,1,1]], [[1],[1],[1],[1],[1]], // 5x1
-            [[1,1],[1,1]], // 2x2
-            [[1,1,1],[1,1,1],[1,1,1]], // 3x3 
-            [[1,1,1],[1,1,1]], [[1,1],[1,1],[1,1]], // 2x3 and 3x2
-            [[1,0],[1,0],[1,1]], [[0,1],[0,1],[1,1]], // L-Form 3 
-            [[1,1],[1,0],[1,0]], [[1,1],[0,1],[0,1]], // L-Form 3 reverse
-            [[1,0,0],[1,1,1]], [[0,0,1],[1,1,1]], // L-Form 3 horizontal
-            [[1,1,1],[0,0,1]], [[1,1,1],[1,0,0]], // L-Form 3 horizontal reverse
-            [[1,1,1],[0,1,0]], [[0,1,0],[1,1,1]], // T-Form
-            [[0,1],[1,1],[0,1]], [[1,0],[1,1],[1,0]], // T-Form flip
-            [[1,1,0],[0,1,1]], [[0,1,1],[1,1,0]], // S-Form
-            [[0,1],[1,1],[1,0]], [[1,0],[1,1],[0,1]], // Z-Form
-            [[1,0],[1,1]], [[0,1],[1,1]], [[1,1],[0,1]], [[1,1],[1,0]] // Small L and reverse
+            [[1,1]], [[1],[1]], // 2er Linie
+            [[1,1,1]], [[1],[1],[1]], // 3er Linie
+            [[1,1,1,1]], [[1],[1],[1],[1]], // 4er Linie
+            [[1,1,1,1,1]], [[1],[1],[1],[1],[1]], // 5er Linie
+            [[1,1],[1,1]], // 2x2 Würfel
+            [[1,1,1],[1,1,1],[1,1,1]], // 3x3 Würfel
+            [[1,1,1],[1,1,1]], [[1,1],[1,1],[1,1]], // 2x3 Block
+            [[1,0],[1,0],[1,1]], [[0,1],[0,1],[1,1]], // L groß
+            [[1,1],[1,0],[1,0]], [[1,1],[0,1],[0,1]], // L groß gedreht
+            [[1,0,0],[1,1,1]], [[0,0,1],[1,1,1]], // L liegend
+            [[1,1,1],[0,0,1]], [[1,1,1],[1,0,0]], // L liegend gedreht
+            [[1,1,1],[0,1,0]], [[0,1,0],[1,1,1]], // T
+            [[0,1],[1,1],[0,1]], [[1,0],[1,1],[1,0]], // T gedreht
+            [[1,1,0],[0,1,1]], [[0,1,1],[1,1,0]], // S
+            [[0,1],[1,1],[1,0]], [[1,0],[1,1],[0,1]], // Z
+            [[1,0],[1,1]], [[0,1],[1,1]], [[1,1],[0,1]], [[1,1],[1,0]] // L klein (Ecke)
         ];
 
         function createShapeElement(matrix, colorId) {
@@ -302,6 +328,7 @@
                     return shape;
                 }
             }
+            // Fallback
             return SHAPES[Math.floor(Math.random() * SHAPES.length)];
         }
 
