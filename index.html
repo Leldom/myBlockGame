@@ -8,19 +8,27 @@
     
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>MyBlockGame - Gray Edition</title>
+    <title>MyBlockGame - High Contrast</title>
     <style>
         :root {
-            /* Sagt dem Browser explizit: Das ist ein Dark Theme */
             color-scheme: dark; 
             
-            /* --- NEUES GRAUES THEMA --- */
-            --bg-color: #181818;      /* Hintergrund: Sehr dunkles Grau (fast Schwarz) */
-            --grid-bg: #222222;       /* Board: Anthrazit */
-            --cell-empty: #353535;    /* Leere Zellen: Sichtbares Grau */
-            
+            /* --- STANDARD THEME (Gray) --- */
+            --bg-color: #181818;
+            --grid-bg: #222222;
+            --cell-empty: #353535;
             --text-color: #fff;
             --gap: 4px;
+            --border-style: none; /* Kein Rand im Standardmodus */
+        }
+
+        /* --- HIGH CONTRAST THEME (True Black) --- */
+        body.high-contrast {
+            --bg-color: #000000;      /* Absolutes Schwarz */
+            --grid-bg: #000000;       /* Gitterhintergrund Schwarz */
+            --cell-empty: #1a1a1a;    /* Sehr dunkle Zellen */
+            --gap: 2px;               /* Engere Lücken */
+            --border-style: 1px solid #555; /* Harter Rand für Sichtbarkeit */
         }
 
         body {
@@ -34,38 +42,67 @@
             align-items: center;
             justify-content: center;
             overflow: hidden;
-            
-            /* Verhindert Text-Markierung und Zoomen */
             touch-action: none;
             -webkit-user-select: none;
             user-select: none;
             -webkit-touch-callout: none;
             -webkit-tap-highlight-color: transparent;
-            
             transition: background-color 0.2s ease;
         }
 
         body.combo-mode {
-            /* Ein dunkles Rötlich-Grau für den Combo-Effekt */
             background-color: #351515;
+        }
+        
+        /* Im High Contrast Mode bleibt der Hintergrund schwarz bei Combo, 
+           aber der Text leuchtet stärker */
+        body.high-contrast.combo-mode {
+            background-color: #1a0000; 
         }
 
         #ui-top {
             display: flex;
             justify-content: space-between;
+            align-items: center;
             width: 90vw;
             max-width: 400px;
             margin-bottom: 20px;
             font-size: 1.5rem;
             font-weight: bold;
+            position: relative;
         }
 
+        /* Button Styling */
+        #btn-contrast {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: #fff;
+            font-size: 1.2rem;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+        #btn-contrast:active {
+            background: rgba(255,255,255,0.3);
+        }
+
+        /* Combo Display absolut zentrieren damit Layout nicht springt */
         #combo-display {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            white-space: nowrap;
             opacity: 0;
             color: #ffcc00;
             transition: opacity 0.2s, transform 0.2s;
             text-shadow: 0 0 15px red;
             font-size: 1.8rem;
+            pointer-events: none;
         }
 
         #game-board {
@@ -81,46 +118,38 @@
             max-width: 400px;
             max-height: 400px;
             transition: background-color 0.5s ease;
-            
-            /* Fix für manche Android Render-Probleme bei Grid-Gaps */
             box-sizing: border-box;
         }
 
-        /* --- ZELLEN --- */
         .cell {
             background-color: var(--cell-empty);
             border-radius: 4px;
             transition: transform 0.2s;
             position: relative; 
-            
-            /* WICHTIG: Verhindert Farbmanipulation durch Browser */
             forced-color-adjust: none;
             -webkit-print-color-adjust: exact;
+            /* Rand für High Contrast Mode */
+            border: var(--border-style);
         }
 
-        /* --- BLÖCKE (Basis) --- */
         .shape-block {
             width: 20px;
             height: 20px;
             border-radius: 2px;
             background-color: #555; 
-            
-            /* WICHTIG: Verhindert Farbmanipulation durch Browser */
             forced-color-adjust: none;
             -webkit-print-color-adjust: exact;
         }
 
         /* --- FARBEN --- */
-        /* Wir nutzen !important um sicherzugehen, dass Samsung nichts überschreibt */
-        .shape-block.c-1, .cell.c-1 { background-color: #00f0f0 !important; box-shadow: inset 0 0 4px rgba(0,0,0,0.25); }
-        .shape-block.c-2, .cell.c-2 { background-color: #0000f0 !important; box-shadow: inset 0 0 4px rgba(0,0,0,0.25); }
-        .shape-block.c-3, .cell.c-3 { background-color: #f0a000 !important; box-shadow: inset 0 0 4px rgba(0,0,0,0.25); }
-        .shape-block.c-4, .cell.c-4 { background-color: #f0f000 !important; box-shadow: inset 0 0 4px rgba(0,0,0,0.25); }
-        .shape-block.c-5, .cell.c-5 { background-color: #00f000 !important; box-shadow: inset 0 0 4px rgba(0,0,0,0.25); }
-        .shape-block.c-6, .cell.c-6 { background-color: #a000f0 !important; box-shadow: inset 0 0 4px rgba(0,0,0,0.25); }
-        .shape-block.c-7, .cell.c-7 { background-color: #f00000 !important; box-shadow: inset 0 0 4px rgba(0,0,0,0.25); }
+        .shape-block.c-1, .cell.c-1 { background-color: #00f0f0 !important; box-shadow: inset 0 0 4px rgba(0,0,0,0.25); border: none; }
+        .shape-block.c-2, .cell.c-2 { background-color: #0000f0 !important; box-shadow: inset 0 0 4px rgba(0,0,0,0.25); border: none; }
+        .shape-block.c-3, .cell.c-3 { background-color: #f0a000 !important; box-shadow: inset 0 0 4px rgba(0,0,0,0.25); border: none; }
+        .shape-block.c-4, .cell.c-4 { background-color: #f0f000 !important; box-shadow: inset 0 0 4px rgba(0,0,0,0.25); border: none; }
+        .shape-block.c-5, .cell.c-5 { background-color: #00f000 !important; box-shadow: inset 0 0 4px rgba(0,0,0,0.25); border: none; }
+        .shape-block.c-6, .cell.c-6 { background-color: #a000f0 !important; box-shadow: inset 0 0 4px rgba(0,0,0,0.25); border: none; }
+        .shape-block.c-7, .cell.c-7 { background-color: #f00000 !important; box-shadow: inset 0 0 4px rgba(0,0,0,0.25); border: none; }
 
-        /* --- PREVIEW --- */
         .cell.preview { opacity: 0.5; }
         .cell.preview.c-1 { background-color: #00f0f0 !important; box-shadow: 0 0 5px #00f0f0; }
         .cell.preview.c-2 { background-color: #0000f0 !important; box-shadow: 0 0 5px #0000f0; }
@@ -130,30 +159,20 @@
         .cell.preview.c-6 { background-color: #a000f0 !important; box-shadow: 0 0 5px #a000f0; }
         .cell.preview.c-7 { background-color: #f00000 !important; box-shadow: 0 0 5px #f00000; }
 
-        /* --- ANIMATION FIX (Weißer Blitz) --- */
         .cell.clearing {
             background-color: #ffffff !important; 
             box-shadow: 0 0 15px #ffffff !important;
             z-index: 100;
             animation: flashAndShrink 0.5s forwards;
-            border-radius: 4px; /* Sicherstellen, dass Form bleibt */
+            border-radius: 4px;
             transform-origin: center;
+            border: none;
         }
 
         @keyframes flashAndShrink {
-            0% { 
-                transform: scale(1); 
-                opacity: 1; 
-                filter: brightness(2); /* Extra Helligkeit */
-            }
-            50% { 
-                transform: scale(1.1); 
-                opacity: 0.9; 
-            }
-            100% { 
-                transform: scale(0); 
-                opacity: 0; 
-            }
+            0% { transform: scale(1); opacity: 1; filter: brightness(2); }
+            50% { transform: scale(1.1); opacity: 0.9; }
+            100% { transform: scale(0); opacity: 0; }
         }
 
         #spawn-area {
@@ -184,7 +203,6 @@
             pointer-events: none;
             opacity: 0.9;
             transform-origin: center center; 
-            /* Auch hier Farbschutz */
             forced-color-adjust: none;
         }
         
@@ -235,6 +253,7 @@
     <div id="ui-top">
         <div id="score-board">Score: 0</div>
         <div id="combo-display"></div>
+        <button id="btn-contrast" onclick="toggleContrast()">👁️</button>
     </div>
     
     <div id="game-board"></div>
@@ -260,6 +279,19 @@
         let currentComboStreak = 0; 
         let comboTimeout = null;
 
+        // --- HIGH CONTRAST LOGIK ---
+        function toggleContrast() {
+            document.body.classList.toggle('high-contrast');
+            // Speichern der Einstellung
+            const isHigh = document.body.classList.contains('high-contrast');
+            localStorage.setItem('highContrast', isHigh);
+        }
+
+        // Beim Laden Einstellung prüfen
+        if (localStorage.getItem('highContrast') === 'true') {
+            document.body.classList.add('high-contrast');
+        }
+
         function initBoard() {
             boardEl.innerHTML = '';
             for (let r = 0; r < BOARD_SIZE; r++) {
@@ -272,25 +304,24 @@
             }
         }
 
-        // --- BLÖCKE LISTE (Geprüft: Vollständig) ---
         const SHAPES = [
-            [[1]], // 1x1
-            [[1,1]], [[1],[1]], // 2er Linie
-            [[1,1,1]], [[1],[1],[1]], // 3er Linie
-            [[1,1,1,1]], [[1],[1],[1],[1]], // 4er Linie
-            [[1,1,1,1,1]], [[1],[1],[1],[1],[1]], // 5er Linie
-            [[1,1],[1,1]], // 2x2 Würfel
-            [[1,1,1],[1,1,1],[1,1,1]], // 3x3 Würfel
-            [[1,1,1],[1,1,1]], [[1,1],[1,1],[1,1]], // 2x3 Block
-            [[1,0],[1,0],[1,1]], [[0,1],[0,1],[1,1]], // L groß
-            [[1,1],[1,0],[1,0]], [[1,1],[0,1],[0,1]], // L groß gedreht
-            [[1,0,0],[1,1,1]], [[0,0,1],[1,1,1]], // L liegend
-            [[1,1,1],[0,0,1]], [[1,1,1],[1,0,0]], // L liegend gedreht
-            [[1,1,1],[0,1,0]], [[0,1,0],[1,1,1]], // T
-            [[0,1],[1,1],[0,1]], [[1,0],[1,1],[1,0]], // T gedreht
-            [[1,1,0],[0,1,1]], [[0,1,1],[1,1,0]], // S
-            [[0,1],[1,1],[1,0]], [[1,0],[1,1],[0,1]], // Z
-            [[1,0],[1,1]], [[0,1],[1,1]], [[1,1],[0,1]], [[1,1],[1,0]] // L klein (Ecke)
+            [[1]], 
+            [[1,1]], [[1],[1]], 
+            [[1,1,1]], [[1],[1],[1]], 
+            [[1,1,1,1]], [[1],[1],[1],[1]], 
+            [[1,1,1,1,1]], [[1],[1],[1],[1],[1]], 
+            [[1,1],[1,1]], 
+            [[1,1,1],[1,1,1],[1,1,1]], 
+            [[1,1,1],[1,1,1]], [[1,1],[1,1],[1,1]], 
+            [[1,0],[1,0],[1,1]], [[0,1],[0,1],[1,1]], 
+            [[1,1],[1,0],[1,0]], [[1,1],[0,1],[0,1]], 
+            [[1,0,0],[1,1,1]], [[0,0,1],[1,1,1]], 
+            [[1,1,1],[0,0,1]], [[1,1,1],[1,0,0]], 
+            [[1,1,1],[0,1,0]], [[0,1,0],[1,1,1]], 
+            [[0,1],[1,1],[0,1]], [[1,0],[1,1],[1,0]], 
+            [[1,1,0],[0,1,1]], [[0,1,1],[1,1,0]], 
+            [[0,1],[1,1],[1,0]], [[1,0],[1,1],[0,1]], 
+            [[1,0],[1,1]], [[0,1],[1,1]], [[1,1],[0,1]], [[1,1],[1,0]] 
         ];
 
         function createShapeElement(matrix, colorId) {
@@ -314,7 +345,6 @@
             return shapeDiv;
         }
 
-        // --- SMART SPAWNING ---
         function canShapeFitAnywhere(matrix) {
             for (let r = 0; r < BOARD_SIZE; r++) {
                 for (let c = 0; c < BOARD_SIZE; c++) {
@@ -331,7 +361,6 @@
                     return shape;
                 }
             }
-            // Fallback
             return SHAPES[Math.floor(Math.random() * SHAPES.length)];
         }
 
@@ -359,7 +388,6 @@
                 const val = grid[r][c];
                 if(val > 0) el.classList.add(`c-${val}`);
                 
-                // Animation erhalten, falls sie gerade läuft
                 if (el.dataset.clearing === "true") {
                      el.classList.add('clearing');
                 }
@@ -502,7 +530,6 @@
                     const val = grid[r][c];
                     
                     let newClasses = 'cell';
-                    // Animation beibehalten wenn das Flag gesetzt ist
                     if(cell.dataset.clearing === "true") {
                         newClasses += ' clearing';
                     }
@@ -560,14 +587,15 @@
                     score += basePoints * currentComboStreak;
 
                     document.body.classList.add('combo-mode');
+                    // Im HighContrast Mode sicherstellen, dass man Combo sieht
                     comboEl.innerText = `${currentComboStreak}x COMBO!`;
                     comboEl.style.opacity = '1';
-                    comboEl.style.transform = 'scale(1.5)';
+                    comboEl.style.transform = 'translate(-50%) scale(1.5)'; /* Beachte translate wegen absolute position */
 
                     comboTimeout = setTimeout(() => {
                         currentComboStreak = 0;
                         comboEl.style.opacity = '0';
-                        comboEl.style.transform = 'scale(1)';
+                        comboEl.style.transform = 'translate(-50%) scale(1)';
                         document.body.classList.remove('combo-mode');
                         comboTimeout = null;
                     }, 2000); 
@@ -579,14 +607,14 @@
                 uniqueCells.forEach(obj => {
                     const cell = document.getElementById(`cell-${obj.r}-${obj.c}`);
                     cell.classList.add('clearing');
-                    cell.dataset.clearing = "true"; // Flag setzen damit updateBoardVisuals es nicht löscht
+                    cell.dataset.clearing = "true"; 
                 });
 
                 setTimeout(() => {
                     uniqueCells.forEach(obj => {
                         grid[obj.r][obj.c] = 0;
                         const cell = document.getElementById(`cell-${obj.r}-${obj.c}`);
-                        cell.dataset.clearing = "false"; // Flag löschen
+                        cell.dataset.clearing = "false"; 
                         cell.className = 'cell';
                     });
                     
