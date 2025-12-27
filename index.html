@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>MyBlockGame - Smart Spawn</title>
+    <title>MyBlockGame - Animation Fix</title>
     <style>
         :root {
             --bg-color: #1a1a2e;
@@ -76,6 +76,7 @@
             background-color: var(--cell-empty);
             border-radius: 4px;
             transition: transform 0.2s;
+            position: relative; /* Wichtig für z-index */
         }
 
         /* --- BLÖCKE (Basis) --- */
@@ -105,14 +106,29 @@
         .cell.preview.c-6 { background-color: #a000f0; box-shadow: 0 0 5px #a000f0; }
         .cell.preview.c-7 { background-color: #f00000; box-shadow: 0 0 5px #f00000; }
 
+        /* --- ANIMATION FIX --- */
+        /* Wir erzwingen Weiß und legen es über alles andere */
         .cell.clearing {
+            background-color: #ffffff !important; 
+            box-shadow: 0 0 15px #ffffff !important;
+            z-index: 100;
             animation: flashAndShrink 0.5s forwards;
+            border: none; /* Ränder entfernen für reines Weiß */
         }
 
         @keyframes flashAndShrink {
-            0% { filter: brightness(2); transform: scale(1); }
-            50% { filter: brightness(2); transform: scale(1.1); }
-            100% { background-color: var(--cell-empty); transform: scale(0); opacity: 0;}
+            0% { 
+                transform: scale(1); 
+                opacity: 1; 
+            }
+            50% { 
+                transform: scale(1.1); 
+                opacity: 0.8; 
+            }
+            100% { 
+                transform: scale(0); 
+                opacity: 0; 
+            }
         }
 
         #spawn-area {
@@ -266,9 +282,7 @@
             return shapeDiv;
         }
 
-        // --- NEUE LOGIK: SMART SPAWNING ---
-
-        // 1. Prüfen, ob eine Form *irgendwo* auf das aktuelle Brett passt
+        // --- SMART SPAWNING ---
         function canShapeFitAnywhere(matrix) {
             for (let r = 0; r < BOARD_SIZE; r++) {
                 for (let c = 0; c < BOARD_SIZE; c++) {
@@ -278,22 +292,13 @@
             return false;
         }
 
-        // 2. Eine Form finden, die sicher passt
         function getSmartShape() {
-            // Wir erstellen eine Kopie der Shapes und mischen sie
-            // Damit wir nicht immer die gleichen finden
             let shuffledShapes = [...SHAPES].sort(() => 0.5 - Math.random());
-
             for (let shape of shuffledShapes) {
-                // Wenn diese Form passt, nehmen wir sie!
                 if (canShapeFitAnywhere(shape)) {
                     return shape;
                 }
             }
-            
-            // Wenn GAR NICHTS mehr passt (Game Over Situation),
-            // geben wir trotzdem eine zufällige zurück, damit das Spiel
-            // dann beim CheckGameOver korrekt beendet wird.
             return SHAPES[Math.floor(Math.random() * SHAPES.length)];
         }
 
@@ -303,7 +308,6 @@
                 const container = document.createElement('div');
                 container.classList.add('shape-container');
                 
-                // HIER: Nutze die neue Smart-Logik
                 const smartMatrix = getSmartShape();
                 const randomColor = Math.floor(Math.random() * 7) + 1; 
                 
@@ -321,7 +325,9 @@
                 const [_, r, c] = el.id.split('-');
                 const val = grid[r][c];
                 if(val > 0) el.classList.add(`c-${val}`);
-                else if (document.querySelector('.clearing') && el.classList.contains('clearing')) {
+                
+                // Animation erhalten, falls sie gerade läuft
+                if (el.dataset.clearing === "true") {
                      el.classList.add('clearing');
                 }
             });
@@ -463,7 +469,8 @@
                     const val = grid[r][c];
                     
                     let newClasses = 'cell';
-                    if(cell.classList.contains('clearing')) {
+                    // Animation beibehalten wenn das Flag gesetzt ist
+                    if(cell.dataset.clearing === "true") {
                         newClasses += ' clearing';
                     }
                     if (val > 0) {
@@ -539,12 +546,14 @@
                 uniqueCells.forEach(obj => {
                     const cell = document.getElementById(`cell-${obj.r}-${obj.c}`);
                     cell.classList.add('clearing');
+                    cell.dataset.clearing = "true"; // Flag setzen damit updateBoardVisuals es nicht löscht
                 });
 
                 setTimeout(() => {
                     uniqueCells.forEach(obj => {
                         grid[obj.r][obj.c] = 0;
                         const cell = document.getElementById(`cell-${obj.r}-${obj.c}`);
+                        cell.dataset.clearing = "false"; // Flag löschen
                         cell.className = 'cell';
                     });
                     
