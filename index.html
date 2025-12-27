@@ -8,15 +8,17 @@
     
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>MyBlockGame - Final Mobile Fix</title>
+    <title>MyBlockGame - Gray Edition</title>
     <style>
         :root {
             /* Sagt dem Browser explizit: Das ist ein Dark Theme */
             color-scheme: dark; 
             
-            --bg-color: #1a1a2e;
-            --grid-bg: #16213e;
-            --cell-empty: #0f3460;
+            /* --- NEUES GRAUES THEMA --- */
+            --bg-color: #181818;      /* Hintergrund: Sehr dunkles Grau (fast Schwarz) */
+            --grid-bg: #222222;       /* Board: Anthrazit */
+            --cell-empty: #353535;    /* Leere Zellen: Sichtbares Grau */
+            
             --text-color: #fff;
             --gap: 4px;
         }
@@ -44,7 +46,8 @@
         }
 
         body.combo-mode {
-            background-color: #3e1a1a;
+            /* Ein dunkles Rötlich-Grau für den Combo-Effekt */
+            background-color: #351515;
         }
 
         #ui-top {
