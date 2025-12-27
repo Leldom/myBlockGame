@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>MyBlockGame</title>
+    <title>MyBlockGame - Smart Spawn</title>
     <style>
         :root {
             --bg-color: #1a1a2e;
@@ -31,11 +31,11 @@
             user-select: none;
             -webkit-touch-callout: none;
             -webkit-tap-highlight-color: transparent;
-            transition: background-color 0.2s ease; /* Schnellerer Übergang für Combo-Blitz */
+            transition: background-color 0.2s ease;
         }
 
         body.combo-mode {
-            background-color: #3e1a1a; /* Rötlicher Hintergrund bei Combo */
+            background-color: #3e1a1a;
         }
 
         #ui-top {
@@ -86,7 +86,7 @@
             background-color: #555; 
         }
 
-        /* --- FARBEN (Mit hoher Spezifität) --- */
+        /* --- FARBEN --- */
         .shape-block.c-1, .cell.c-1 { background-color: #00f0f0; box-shadow: inset 0 0 4px rgba(0,0,0,0.25); }
         .shape-block.c-2, .cell.c-2 { background-color: #0000f0; box-shadow: inset 0 0 4px rgba(0,0,0,0.25); }
         .shape-block.c-3, .cell.c-3 { background-color: #f0a000; box-shadow: inset 0 0 4px rgba(0,0,0,0.25); }
@@ -95,7 +95,7 @@
         .shape-block.c-6, .cell.c-6 { background-color: #a000f0; box-shadow: inset 0 0 4px rgba(0,0,0,0.25); }
         .shape-block.c-7, .cell.c-7 { background-color: #f00000; box-shadow: inset 0 0 4px rgba(0,0,0,0.25); }
 
-        /* --- PREVIEW / GHOST --- */
+        /* --- PREVIEW --- */
         .cell.preview { opacity: 0.5; }
         .cell.preview.c-1 { background-color: #00f0f0; box-shadow: 0 0 5px #00f0f0; }
         .cell.preview.c-2 { background-color: #0000f0; box-shadow: 0 0 5px #0000f0; }
@@ -213,10 +213,8 @@
         
         let grid = Array(BOARD_SIZE).fill().map(() => Array(BOARD_SIZE).fill(0));
         let score = 0;
-
-        // NEUE VARIABLEN FÜR DIE COMBO LOGIK
-        let currentComboStreak = 0; // Wie viele Combo-Schritte hintereinander?
-        let comboTimeout = null;    // Der Timer für die 2 Sekunden
+        let currentComboStreak = 0; 
+        let comboTimeout = null;
 
         function initBoard() {
             boardEl.innerHTML = '';
@@ -268,16 +266,48 @@
             return shapeDiv;
         }
 
+        // --- NEUE LOGIK: SMART SPAWNING ---
+
+        // 1. Prüfen, ob eine Form *irgendwo* auf das aktuelle Brett passt
+        function canShapeFitAnywhere(matrix) {
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                for (let c = 0; c < BOARD_SIZE; c++) {
+                    if (canPlace(matrix, r, c)) return true;
+                }
+            }
+            return false;
+        }
+
+        // 2. Eine Form finden, die sicher passt
+        function getSmartShape() {
+            // Wir erstellen eine Kopie der Shapes und mischen sie
+            // Damit wir nicht immer die gleichen finden
+            let shuffledShapes = [...SHAPES].sort(() => 0.5 - Math.random());
+
+            for (let shape of shuffledShapes) {
+                // Wenn diese Form passt, nehmen wir sie!
+                if (canShapeFitAnywhere(shape)) {
+                    return shape;
+                }
+            }
+            
+            // Wenn GAR NICHTS mehr passt (Game Over Situation),
+            // geben wir trotzdem eine zufällige zurück, damit das Spiel
+            // dann beim CheckGameOver korrekt beendet wird.
+            return SHAPES[Math.floor(Math.random() * SHAPES.length)];
+        }
+
         function spawnShapes() {
             spawnEl.innerHTML = '';
             for(let i=0; i<3; i++) {
                 const container = document.createElement('div');
                 container.classList.add('shape-container');
                 
-                const randomShape = SHAPES[Math.floor(Math.random() * SHAPES.length)];
+                // HIER: Nutze die neue Smart-Logik
+                const smartMatrix = getSmartShape();
                 const randomColor = Math.floor(Math.random() * 7) + 1; 
                 
-                const shapeEl = createShapeElement(randomShape, randomColor);
+                const shapeEl = createShapeElement(smartMatrix, randomColor);
                 addDragLogic(shapeEl);
                 container.appendChild(shapeEl);
                 spawnEl.appendChild(container);
@@ -449,7 +479,6 @@
             let cellsToClear = []; 
             let linesCleared = 0;
 
-            // Zeilen und Spalten prüfen
             for(let r=0; r<BOARD_SIZE; r++) {
                 if(grid[r].every(val => val !== 0)) {
                     linesCleared++;
@@ -466,7 +495,6 @@
             }
 
             if (cellsToClear.length > 0) {
-                // Duplikate filtern
                 const uniqueCells = [];
                 const map = new Map();
                 for (const item of cellsToClear) {
@@ -477,38 +505,27 @@
                     }
                 }
 
-                // --- PUNKTE & COMBO LOGIK (ANGEPASST) ---
-                
-                // Basis Punkte
                 let basePoints = 0;
                 if (linesCleared === 1) basePoints = 100;
                 else if (linesCleared === 2) basePoints = 300;
                 else if (linesCleared === 3) basePoints = 600;
                 else basePoints = 1000;
 
-                // Alten Timer löschen, falls vorhanden
                 if (comboTimeout) clearTimeout(comboTimeout);
 
-                // STARTBEDINGUNG FÜR COMBO:
-                // Entweder wir löschen JETZT >= 2 Zeilen
-                // ODER wir sind bereits in einer aktiven Combo (Streak > 0)
                 let isComboAction = (linesCleared >= 2) || (currentComboStreak > 0);
 
                 if (isComboAction) {
-                    currentComboStreak++; // Combo Stufe erhöhen
-
-                    // Punkte multiplizieren
+                    currentComboStreak++; 
                     score += basePoints * currentComboStreak;
 
-                    // UI Updaten
                     document.body.classList.add('combo-mode');
                     comboEl.innerText = `${currentComboStreak}x COMBO!`;
                     comboEl.style.opacity = '1';
                     comboEl.style.transform = 'scale(1.5)';
 
-                    // TIMER NEU SETZEN (2 Sekunden)
                     comboTimeout = setTimeout(() => {
-                        currentComboStreak = 0; // Combo verfallen
+                        currentComboStreak = 0;
                         comboEl.style.opacity = '0';
                         comboEl.style.transform = 'scale(1)';
                         document.body.classList.remove('combo-mode');
@@ -516,19 +533,14 @@
                     }, 2000); 
 
                 } else {
-                    // Nur 1 Zeile gelöscht UND keine laufende Combo
                     score += basePoints;
-                    // Hinweis: Das unterbricht eine potenzielle "zukünftige" Combo nicht, 
-                    // startet aber auch keine neue.
                 }
 
-                // Animation starten
                 uniqueCells.forEach(obj => {
                     const cell = document.getElementById(`cell-${obj.r}-${obj.c}`);
                     cell.classList.add('clearing');
                 });
 
-                // Nach Animation Grid bereinigen
                 setTimeout(() => {
                     uniqueCells.forEach(obj => {
                         grid[obj.r][obj.c] = 0;
