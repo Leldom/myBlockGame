@@ -5,8 +5,186 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>MyBlockGame - Ultimate Fix</title>
-    <link rel="stylesheet" href="style.css">
+    <title>MyBlockGame</title>
+    <style>
+        :root {
+            --bg-color: #1a1a2e;
+            --grid-bg: #16213e;
+            --cell-empty: #0f3460;
+            --text-color: #fff;
+            --gap: 4px;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            touch-action: none;
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
+            -webkit-tap-highlight-color: transparent;
+            transition: background-color 0.2s ease; /* Schnellerer Übergang für Combo-Blitz */
+        }
+
+        body.combo-mode {
+            background-color: #3e1a1a; /* Rötlicher Hintergrund bei Combo */
+        }
+
+        #ui-top {
+            display: flex;
+            justify-content: space-between;
+            width: 90vw;
+            max-width: 400px;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        #combo-display {
+            opacity: 0;
+            color: #ffcc00;
+            transition: opacity 0.2s, transform 0.2s;
+            text-shadow: 0 0 15px red;
+            font-size: 1.8rem;
+        }
+
+        #game-board {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            grid-template-rows: repeat(8, 1fr);
+            gap: var(--gap);
+            background-color: var(--grid-bg);
+            padding: var(--gap);
+            border-radius: 12px;
+            width: 90vw;
+            height: 90vw;
+            max-width: 400px;
+            max-height: 400px;
+            transition: background-color 0.5s ease;
+        }
+
+        /* --- ZELLEN --- */
+        .cell {
+            background-color: var(--cell-empty);
+            border-radius: 4px;
+            transition: transform 0.2s;
+        }
+
+        /* --- BLÖCKE (Basis) --- */
+        .shape-block {
+            width: 20px;
+            height: 20px;
+            border-radius: 2px;
+            background-color: #555; 
+        }
+
+        /* --- FARBEN (Mit hoher Spezifität) --- */
+        .shape-block.c-1, .cell.c-1 { background-color: #00f0f0; box-shadow: inset 0 0 4px rgba(0,0,0,0.25); }
+        .shape-block.c-2, .cell.c-2 { background-color: #0000f0; box-shadow: inset 0 0 4px rgba(0,0,0,0.25); }
+        .shape-block.c-3, .cell.c-3 { background-color: #f0a000; box-shadow: inset 0 0 4px rgba(0,0,0,0.25); }
+        .shape-block.c-4, .cell.c-4 { background-color: #f0f000; box-shadow: inset 0 0 4px rgba(0,0,0,0.25); }
+        .shape-block.c-5, .cell.c-5 { background-color: #00f000; box-shadow: inset 0 0 4px rgba(0,0,0,0.25); }
+        .shape-block.c-6, .cell.c-6 { background-color: #a000f0; box-shadow: inset 0 0 4px rgba(0,0,0,0.25); }
+        .shape-block.c-7, .cell.c-7 { background-color: #f00000; box-shadow: inset 0 0 4px rgba(0,0,0,0.25); }
+
+        /* --- PREVIEW / GHOST --- */
+        .cell.preview { opacity: 0.5; }
+        .cell.preview.c-1 { background-color: #00f0f0; box-shadow: 0 0 5px #00f0f0; }
+        .cell.preview.c-2 { background-color: #0000f0; box-shadow: 0 0 5px #0000f0; }
+        .cell.preview.c-3 { background-color: #f0a000; box-shadow: 0 0 5px #f0a000; }
+        .cell.preview.c-4 { background-color: #f0f000; box-shadow: 0 0 5px #f0f000; }
+        .cell.preview.c-5 { background-color: #00f000; box-shadow: 0 0 5px #00f000; }
+        .cell.preview.c-6 { background-color: #a000f0; box-shadow: 0 0 5px #a000f0; }
+        .cell.preview.c-7 { background-color: #f00000; box-shadow: 0 0 5px #f00000; }
+
+        .cell.clearing {
+            animation: flashAndShrink 0.5s forwards;
+        }
+
+        @keyframes flashAndShrink {
+            0% { filter: brightness(2); transform: scale(1); }
+            50% { filter: brightness(2); transform: scale(1.1); }
+            100% { background-color: var(--cell-empty); transform: scale(0); opacity: 0;}
+        }
+
+        #spawn-area {
+            margin-top: 40px;
+            display: flex;
+            justify-content: space-around;
+            width: 100%;
+            max-width: 400px;
+            height: 100px;
+        }
+
+        .shape-container {
+            width: 80px;
+            height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .shape {
+            display: grid;
+            gap: 2px;
+        }
+        
+        .dragging {
+            position: fixed;
+            z-index: 1000;
+            pointer-events: none;
+            opacity: 0.9;
+            transform-origin: center center; 
+        }
+        .hidden { display: none !important; }
+
+        #game-over-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            backdrop-filter: blur(5px);
+        }
+
+        .game-over-box {
+            background: var(--bg-color);
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            border: 2px solid #fff;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+        }
+
+        .game-over-box h2 {
+            font-size: 2.5rem;
+            margin: 0 0 10px 0;
+            color: #e94560;
+        }
+
+        .game-over-box button {
+            background: #e94560;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 20px;
+            font-weight: bold;
+        }
+    </style>
 </head>
 <body>
 
@@ -26,7 +204,398 @@
         </div>
     </div>
 
-    <script src="script.js"></script>
+    <script>
+        const BOARD_SIZE = 8;
+        const boardEl = document.getElementById('game-board');
+        const spawnEl = document.getElementById('spawn-area');
+        const scoreEl = document.getElementById('score-board');
+        const comboEl = document.getElementById('combo-display');
+        
+        let grid = Array(BOARD_SIZE).fill().map(() => Array(BOARD_SIZE).fill(0));
+        let score = 0;
 
+        // NEUE VARIABLEN FÜR DIE COMBO LOGIK
+        let currentComboStreak = 0; // Wie viele Combo-Schritte hintereinander?
+        let comboTimeout = null;    // Der Timer für die 2 Sekunden
+
+        function initBoard() {
+            boardEl.innerHTML = '';
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                for (let c = 0; c < BOARD_SIZE; c++) {
+                    let cell = document.createElement('div');
+                    cell.classList.add('cell');
+                    cell.id = `cell-${r}-${c}`;
+                    boardEl.appendChild(cell);
+                }
+            }
+        }
+
+        const SHAPES = [
+            [[1]], 
+            [[1,1]], [[1],[1]], 
+            [[1,1,1]], [[1],[1],[1]], 
+            [[1,1,1,1]], [[1],[1],[1],[1]], 
+            [[1,1,1,1,1]], [[1],[1],[1],[1],[1]], 
+            [[1,1],[1,1]], 
+            [[1,1,1],[1,1,1],[1,1,1]], 
+            [[1,0],[1,0],[1,1]], [[0,1],[0,1],[1,1]], 
+            [[1,1],[1,0],[1,0]], [[1,1],[0,1],[0,1]], 
+            [[1,0,0],[1,1,1]], [[0,0,1],[1,1,1]], 
+            [[1,1,1],[0,1,0]], [[0,1,0],[1,1,1]], 
+            [[0,1],[1,1],[0,1]], [[1,0],[1,1],[1,0]], 
+            [[1,1,0],[0,1,1]], [[0,1,1],[1,1,0]], 
+            [[0,1],[1,1],[1,0]], [[1,0],[1,1],[0,1]], 
+        ];
+
+        function createShapeElement(matrix, colorId) {
+            const shapeDiv = document.createElement('div');
+            shapeDiv.classList.add('shape');
+            shapeDiv.style.gridTemplateColumns = `repeat(${matrix[0].length}, 20px)`;
+            
+            shapeDiv.dataset.colorId = colorId;
+            shapeDiv.dataset.matrix = JSON.stringify(matrix);
+
+            matrix.forEach((row) => {
+                row.forEach((val) => {
+                    const block = document.createElement('div');
+                    if (val === 1) {
+                        block.classList.add('shape-block');
+                        block.classList.add(`c-${colorId}`);
+                    }
+                    shapeDiv.appendChild(block);
+                });
+            });
+            return shapeDiv;
+        }
+
+        function spawnShapes() {
+            spawnEl.innerHTML = '';
+            for(let i=0; i<3; i++) {
+                const container = document.createElement('div');
+                container.classList.add('shape-container');
+                
+                const randomShape = SHAPES[Math.floor(Math.random() * SHAPES.length)];
+                const randomColor = Math.floor(Math.random() * 7) + 1; 
+                
+                const shapeEl = createShapeElement(randomShape, randomColor);
+                addDragLogic(shapeEl);
+                container.appendChild(shapeEl);
+                spawnEl.appendChild(container);
+            }
+        }
+
+        function clearPreview() {
+            document.querySelectorAll('.cell.preview').forEach(el => {
+                el.classList.remove('preview');
+                el.className = 'cell';
+                const [_, r, c] = el.id.split('-');
+                const val = grid[r][c];
+                if(val > 0) el.classList.add(`c-${val}`);
+                else if (document.querySelector('.clearing') && el.classList.contains('clearing')) {
+                     el.classList.add('clearing');
+                }
+            });
+        }
+
+        function showPreview(matrix, r, c, colorId) {
+            clearPreview();
+            if (!canPlace(matrix, r, c)) return;
+
+            for (let i = 0; i < matrix.length; i++) {
+                for (let j = 0; j < matrix[i].length; j++) {
+                    if (matrix[i][j] === 1) {
+                        const cell = document.getElementById(`cell-${r+i}-${c+j}`);
+                        if (cell) {
+                            cell.classList.add('preview');
+                            cell.classList.add(`c-${colorId}`);
+                        }
+                    }
+                }
+            }
+        }
+
+        const DRAG_OFFSET_Y = 100; 
+
+        function getGridCoords(x, y, shapeEl) {
+            const boardRect = boardEl.getBoundingClientRect();
+            const targetX = x;
+            const targetY = y - DRAG_OFFSET_Y;
+
+            if (targetX > boardRect.left && targetX < boardRect.right && 
+                targetY > boardRect.top && targetY < boardRect.bottom) {
+                
+                const cellSize = boardRect.width / BOARD_SIZE;
+                const cols = parseInt(shapeEl.dataset.cols || 1);
+                const rows = parseInt(shapeEl.dataset.rows || 1);
+
+                const col = Math.floor((targetX - boardRect.left) / cellSize - (cols - 1) / 2); 
+                const row = Math.floor((targetY - boardRect.top) / cellSize - (rows - 1) / 2);
+                
+                return { r: row, c: col, valid: true };
+            }
+            return { r: 0, c: 0, valid: false };
+        }
+
+        function addDragLogic(el) {
+            let clone;
+            const matrix = JSON.parse(el.dataset.matrix);
+            const colorId = el.dataset.colorId;
+            
+            el.dataset.rows = matrix.length;
+            el.dataset.cols = matrix[0].length;
+
+            const touchStart = (e) => {
+                e.preventDefault();
+                const touch = e.touches[0];
+                const boardRect = boardEl.getBoundingClientRect();
+                const gridCellSize = boardRect.width / BOARD_SIZE;
+                const scaleFactor = gridCellSize / 20;
+
+                clone = el.cloneNode(true);
+                clone.classList.add('dragging');
+                clone.style.width = el.offsetWidth + 'px'; 
+                document.body.appendChild(clone);
+                
+                const moveAt = (pageX, pageY) => {
+                    clone.style.left = (pageX - el.offsetWidth / 2) + 'px';
+                    clone.style.top = (pageY - el.offsetHeight / 2 - DRAG_OFFSET_Y) + 'px';
+                    clone.style.transform = `scale(${scaleFactor})`;
+                };
+                
+                moveAt(touch.pageX, touch.pageY);
+                el.style.opacity = '0';
+
+                const touchMove = (e) => {
+                    const t = e.touches[0];
+                    moveAt(t.pageX, t.pageY);
+                    const coords = getGridCoords(t.clientX, t.clientY, clone);
+                    if (coords.valid) {
+                        showPreview(matrix, coords.r, coords.c, colorId);
+                    } else {
+                        clearPreview();
+                    }
+                };
+
+                const touchEnd = (e) => {
+                    document.removeEventListener('touchmove', touchMove);
+                    document.removeEventListener('touchend', touchEnd);
+                    clearPreview();
+                    
+                    const t = e.changedTouches[0];
+                    const coords = getGridCoords(t.clientX, t.clientY, clone);
+
+                    if (coords.valid && canPlace(matrix, coords.r, coords.c)) {
+                        placeShape(matrix, coords.r, coords.c, colorId);
+                        clone.remove();
+                        el.parentNode.innerHTML = ''; 
+                        updateBoardVisuals(); 
+                        setTimeout(() => checkLinesAndSpawn(), 50);
+                    } else {
+                        clone.remove();
+                        el.style.opacity = '1';
+                    }
+                };
+                document.addEventListener('touchmove', touchMove, {passive: false});
+                document.addEventListener('touchend', touchEnd);
+            };
+            el.addEventListener('touchstart', touchStart, {passive: false});
+        }
+
+        function canPlace(matrix, r, c) {
+            for (let i = 0; i < matrix.length; i++) {
+                for (let j = 0; j < matrix[i].length; j++) {
+                    if (matrix[i][j] === 1) {
+                        let targetR = r + i;
+                        let targetC = c + j;
+                        if (targetR < 0 || targetR >= BOARD_SIZE || targetC < 0 || targetC >= BOARD_SIZE) return false;
+                        if (grid[targetR][targetC] !== 0) return false;
+                    }
+                }
+            }
+            return true;
+        }
+
+        function placeShape(matrix, r, c, colorId) {
+            score += 10;
+            for (let i = 0; i < matrix.length; i++) {
+                for (let j = 0; j < matrix[i].length; j++) {
+                    if (matrix[i][j] === 1) {
+                        grid[r + i][c + j] = parseInt(colorId);
+                    }
+                }
+            }
+        }
+
+        function updateBoardVisuals() {
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                for (let c = 0; c < BOARD_SIZE; c++) {
+                    const cell = document.getElementById(`cell-${r}-${c}`);
+                    const val = grid[r][c];
+                    
+                    let newClasses = 'cell';
+                    if(cell.classList.contains('clearing')) {
+                        newClasses += ' clearing';
+                    }
+                    if (val > 0) {
+                        newClasses += ` c-${val}`;
+                    }
+                    cell.className = newClasses;
+                }
+            }
+            scoreEl.innerText = `Score: ${score}`;
+        }
+
+        function checkLinesAndSpawn() {
+            let cellsToClear = []; 
+            let linesCleared = 0;
+
+            // Zeilen und Spalten prüfen
+            for(let r=0; r<BOARD_SIZE; r++) {
+                if(grid[r].every(val => val !== 0)) {
+                    linesCleared++;
+                    for(let c=0; c<BOARD_SIZE; c++) cellsToClear.push({r, c});
+                }
+            }
+            for(let c=0; c<BOARD_SIZE; c++) {
+                let full = true;
+                for(let r=0; r<BOARD_SIZE; r++) if(grid[r][c] === 0) full = false;
+                if(full) {
+                    linesCleared++;
+                    for(let r=0; r<BOARD_SIZE; r++) cellsToClear.push({r, c});
+                }
+            }
+
+            if (cellsToClear.length > 0) {
+                // Duplikate filtern
+                const uniqueCells = [];
+                const map = new Map();
+                for (const item of cellsToClear) {
+                    const key = `${item.r}-${item.c}`;
+                    if(!map.has(key)){
+                        map.set(key, true);
+                        uniqueCells.push(item);
+                    }
+                }
+
+                // --- PUNKTE & COMBO LOGIK (ANGEPASST) ---
+                
+                // Basis Punkte
+                let basePoints = 0;
+                if (linesCleared === 1) basePoints = 100;
+                else if (linesCleared === 2) basePoints = 300;
+                else if (linesCleared === 3) basePoints = 600;
+                else basePoints = 1000;
+
+                // Alten Timer löschen, falls vorhanden
+                if (comboTimeout) clearTimeout(comboTimeout);
+
+                // STARTBEDINGUNG FÜR COMBO:
+                // Entweder wir löschen JETZT >= 2 Zeilen
+                // ODER wir sind bereits in einer aktiven Combo (Streak > 0)
+                let isComboAction = (linesCleared >= 2) || (currentComboStreak > 0);
+
+                if (isComboAction) {
+                    currentComboStreak++; // Combo Stufe erhöhen
+
+                    // Punkte multiplizieren
+                    score += basePoints * currentComboStreak;
+
+                    // UI Updaten
+                    document.body.classList.add('combo-mode');
+                    comboEl.innerText = `${currentComboStreak}x COMBO!`;
+                    comboEl.style.opacity = '1';
+                    comboEl.style.transform = 'scale(1.5)';
+
+                    // TIMER NEU SETZEN (2 Sekunden)
+                    comboTimeout = setTimeout(() => {
+                        currentComboStreak = 0; // Combo verfallen
+                        comboEl.style.opacity = '0';
+                        comboEl.style.transform = 'scale(1)';
+                        document.body.classList.remove('combo-mode');
+                        comboTimeout = null;
+                    }, 2000); 
+
+                } else {
+                    // Nur 1 Zeile gelöscht UND keine laufende Combo
+                    score += basePoints;
+                    // Hinweis: Das unterbricht eine potenzielle "zukünftige" Combo nicht, 
+                    // startet aber auch keine neue.
+                }
+
+                // Animation starten
+                uniqueCells.forEach(obj => {
+                    const cell = document.getElementById(`cell-${obj.r}-${obj.c}`);
+                    cell.classList.add('clearing');
+                });
+
+                // Nach Animation Grid bereinigen
+                setTimeout(() => {
+                    uniqueCells.forEach(obj => {
+                        grid[obj.r][obj.c] = 0;
+                        const cell = document.getElementById(`cell-${obj.r}-${obj.c}`);
+                        cell.className = 'cell';
+                    });
+                    
+                    updateBoardVisuals();
+                    checkSpawnRefill();
+                }, 500); 
+
+            } else {
+                checkSpawnRefill();
+            }
+        }
+
+        function checkSpawnRefill() {
+            const shapes = Array.from(spawnEl.querySelectorAll('.shape'));
+            if(shapes.length === 0) {
+                spawnShapes();
+            }
+            setTimeout(() => {
+                checkGameOver();
+            }, 250);
+        }
+
+        function checkGameOver() {
+            const shapes = Array.from(spawnEl.querySelectorAll('.shape'));
+            if (shapes.length === 0) return;
+
+            let movePossible = false;
+            for (let s = 0; s < shapes.length; s++) {
+                const shapeEl = shapes[s];
+                const matrix = JSON.parse(shapeEl.dataset.matrix);
+                for (let r = 0; r < BOARD_SIZE; r++) {
+                    for (let c = 0; c < BOARD_SIZE; c++) {
+                        if (canPlace(matrix, r, c)) {
+                            movePossible = true;
+                            break; 
+                        }
+                    }
+                    if (movePossible) break;
+                }
+                if (movePossible) break;
+            }
+
+            if (!movePossible) {
+                document.getElementById('final-score').innerText = 'Score: ' + score;
+                document.getElementById('game-over-overlay').classList.remove('hidden');
+            }
+        }
+
+        function resetGame() {
+            score = 0;
+            currentComboStreak = 0;
+            if (comboTimeout) clearTimeout(comboTimeout);
+            document.body.classList.remove('combo-mode');
+            comboEl.style.opacity = '0';
+
+            grid = Array(BOARD_SIZE).fill().map(() => Array(BOARD_SIZE).fill(0));
+            updateBoardVisuals();
+            document.getElementById('game-over-overlay').classList.add('hidden');
+            spawnShapes();
+        }
+
+        initBoard();
+        spawnShapes();
+    </script>
 </body>
 </html>
