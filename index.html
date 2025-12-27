@@ -8,7 +8,7 @@
     
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>MyBlockGame - High Contrast</title>
+    <title>MyBlockGame - Layout Fix</title>
     <style>
         :root {
             color-scheme: dark; 
@@ -19,16 +19,16 @@
             --cell-empty: #353535;
             --text-color: #fff;
             --gap: 4px;
-            --border-style: none; /* Kein Rand im Standardmodus */
+            --border-style: none; 
         }
 
         /* --- HIGH CONTRAST THEME (True Black) --- */
         body.high-contrast {
-            --bg-color: #000000;      /* Absolutes Schwarz */
-            --grid-bg: #000000;       /* Gitterhintergrund Schwarz */
-            --cell-empty: #1a1a1a;    /* Sehr dunkle Zellen */
-            --gap: 2px;               /* Engere Lücken */
-            --border-style: 1px solid #555; /* Harter Rand für Sichtbarkeit */
+            --bg-color: #000000;
+            --grid-bg: #000000;
+            --cell-empty: #1a1a1a;
+            --gap: 2px;
+            --border-style: 1px solid #555; 
         }
 
         body {
@@ -54,22 +54,49 @@
             background-color: #351515;
         }
         
-        /* Im High Contrast Mode bleibt der Hintergrund schwarz bei Combo, 
-           aber der Text leuchtet stärker */
         body.high-contrast.combo-mode {
             background-color: #1a0000; 
         }
 
-        #ui-top {
+        /* --- NEUES UI LAYOUT --- */
+        /* Container für den oberen Bereich (Score, Button UND Combo) */
+        #ui-header {
+            width: 90vw;
+            max-width: 400px;
+            margin-bottom: 10px;
+            display: flex;
+            flex-direction: column; /* Stapelt Score-Leiste und Combo übereinander */
+            align-items: center;
+        }
+
+        /* Die Zeile mit Score und Button */
+        #ui-row-top {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            width: 90vw;
-            max-width: 400px;
-            margin-bottom: 20px;
+            width: 100%;
             font-size: 1.5rem;
             font-weight: bold;
-            position: relative;
+            height: 40px; /* Feste Höhe verhindert Springen */
+        }
+
+        /* Der Bereich für die Combo - Eigene Zeile darunter */
+        #combo-container {
+            height: 40px; /* Reservierter Platz, damit das Board nicht springt */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+        }
+
+        #combo-display {
+            opacity: 0;
+            color: #ffcc00;
+            transition: opacity 0.2s, transform 0.2s;
+            text-shadow: 0 0 15px red;
+            font-size: 1.8rem;
+            font-weight: bold;
+            /* Kein absolute positioning mehr nötig! */
         }
 
         /* Button Styling */
@@ -89,20 +116,6 @@
         }
         #btn-contrast:active {
             background: rgba(255,255,255,0.3);
-        }
-
-        /* Combo Display absolut zentrieren damit Layout nicht springt */
-        #combo-display {
-            position: absolute;
-            left: 50%;
-            transform: translateX(-50%);
-            white-space: nowrap;
-            opacity: 0;
-            color: #ffcc00;
-            transition: opacity 0.2s, transform 0.2s;
-            text-shadow: 0 0 15px red;
-            font-size: 1.8rem;
-            pointer-events: none;
         }
 
         #game-board {
@@ -128,7 +141,6 @@
             position: relative; 
             forced-color-adjust: none;
             -webkit-print-color-adjust: exact;
-            /* Rand für High Contrast Mode */
             border: var(--border-style);
         }
 
@@ -250,10 +262,14 @@
 </head>
 <body>
 
-    <div id="ui-top">
-        <div id="score-board">Score: 0</div>
-        <div id="combo-display"></div>
-        <button id="btn-contrast" onclick="toggleContrast()">👁️</button>
+    <div id="ui-header">
+        <div id="ui-row-top">
+            <div id="score-board">Score: 0</div>
+            <button id="btn-contrast" onclick="toggleContrast()">👁️</button>
+        </div>
+        <div id="combo-container">
+            <div id="combo-display"></div>
+        </div>
     </div>
     
     <div id="game-board"></div>
@@ -282,12 +298,10 @@
         // --- HIGH CONTRAST LOGIK ---
         function toggleContrast() {
             document.body.classList.toggle('high-contrast');
-            // Speichern der Einstellung
             const isHigh = document.body.classList.contains('high-contrast');
             localStorage.setItem('highContrast', isHigh);
         }
 
-        // Beim Laden Einstellung prüfen
         if (localStorage.getItem('highContrast') === 'true') {
             document.body.classList.add('high-contrast');
         }
@@ -587,15 +601,15 @@
                     score += basePoints * currentComboStreak;
 
                     document.body.classList.add('combo-mode');
-                    // Im HighContrast Mode sicherstellen, dass man Combo sieht
+                    
                     comboEl.innerText = `${currentComboStreak}x COMBO!`;
                     comboEl.style.opacity = '1';
-                    comboEl.style.transform = 'translate(-50%) scale(1.5)'; /* Beachte translate wegen absolute position */
+                    comboEl.style.transform = 'scale(1.5)';
 
                     comboTimeout = setTimeout(() => {
                         currentComboStreak = 0;
                         comboEl.style.opacity = '0';
-                        comboEl.style.transform = 'translate(-50%) scale(1)';
+                        comboEl.style.transform = 'scale(1)';
                         document.body.classList.remove('combo-mode');
                         comboTimeout = null;
                     }, 2000); 
