@@ -8,7 +8,7 @@
     
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>MyBlockGame - Layout Fix</title>
+    <title>MyBlockGame</title>
     <style>
         :root {
             color-scheme: dark; 
@@ -596,9 +596,13 @@
 
                 let isComboAction = (linesCleared >= 2) || (currentComboStreak > 0);
 
+                // Combo-Logik
                 if (isComboAction) {
-                    currentComboStreak++; 
-                    score += basePoints * currentComboStreak;
+                    if (linesCleared >= 1) {
+                        currentComboStreak += linesCleared;
+                    } else {
+                        currentComboStreak ++;
+                    }
 
                     document.body.classList.add('combo-mode');
                     
@@ -612,7 +616,7 @@
                         comboEl.style.transform = 'scale(1)';
                         document.body.classList.remove('combo-mode');
                         comboTimeout = null;
-                    }, 2000); 
+                    }, 2500); // 2,5 Sekunden ohne Combo-Aktion
 
                 } else {
                     score += basePoints;
